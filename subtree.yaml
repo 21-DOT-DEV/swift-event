@@ -1,2 +1,8 @@
 # Managed by subtree CLI - https://github.com/21-DOT-DEV/subtree
-subtrees: []
+subtrees:
+- name: libevent
+  remote: https://github.com/libevent/libevent.git
+  prefix: Vendor/libevent
+  commit: 8b8d7be276dbd3ed37f2bec6b39bb36fd75a2f9b
+  branch: release-2.1.12-stable
+  squash: true
