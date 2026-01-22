@@ -1,5 +1,5 @@
-/* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
+ * Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
  * Copyright (c) 2007-2012 Niels Provos and Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,44 +24,60 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef EVENT2_VISIBILITY_H_INCLUDED_
-#define EVENT2_VISIBILITY_H_INCLUDED_
+#ifndef EVENT1_EVENT_H_INCLUDED_
+#define EVENT1_EVENT_H_INCLUDED_
 
-#include <event2/event-config.h>
+/** @file event.h
 
-#if defined(event_shared_EXPORTS) || \
-    defined(event_extra_shared_EXPORTS) || \
-    defined(event_core_shared_EXPORTS) || \
-    defined(event_pthreads_shared_EXPORTS) || \
-    defined(event_openssl_shared_EXPORTS)
+  A library for writing event-driven network servers.
 
-# if defined (__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-#  define EVENT2_EXPORT_SYMBOL __global
-# elif defined __GNUC__
-#  define EVENT2_EXPORT_SYMBOL __attribute__ ((visibility("default")))
-# elif defined(_MSC_VER)
-#  define EVENT2_EXPORT_SYMBOL __declspec(dllexport)
-# else
-#  define EVENT2_EXPORT_SYMBOL /* unknown compiler */
-# endif
+  The <event.h> header is deprecated in Libevent 2.0 and later; please
+  use <event2/event.h> instead.  Depending on what functionality you
+  need, you may also want to include more of the other event2/
+  headers.
+ */
 
-#else /* event_*_EXPORTS */
-
-# define EVENT2_EXPORT_SYMBOL
-
-#endif /* event_*_EXPORTS */
-
-/** We need to dllimport event_debug_logging_mask_ into event_extra */
-#if defined(_MSC_VER)
-# if defined(event_core_shared_EXPORTS) /** from core export */
-#  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllexport)
-# elif defined(event_extra_shared_EXPORTS) || /** from extra import */ \
-       defined(EVENT_VISIBILITY_WANT_DLLIMPORT)
-#  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllimport)
-# endif
-#endif /* _MSC_VER */
-#if !defined(EVENT2_CORE_EXPORT_SYMBOL)
-# define EVENT2_CORE_EXPORT_SYMBOL EVENT2_EXPORT_SYMBOL
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#endif /* EVENT2_VISIBILITY_H_INCLUDED_ */
+#include <event2/event-config.h>
+#ifdef EVENT__HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef EVENT__HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef EVENT__HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#include <stdarg.h>
+
+/* For int types. */
+#include <evutil.h>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#endif
+
+#include <event2/event_struct.h>
+#include <event2/event.h>
+#include <event2/event_compat.h>
+#include <event2/buffer.h>
+#include <event2/buffer_compat.h>
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_struct.h>
+#include <event2/bufferevent_compat.h>
+#include <event2/tag.h>
+#include <event2/tag_compat.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* EVENT1_EVENT_H_INCLUDED_ */

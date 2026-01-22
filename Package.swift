@@ -12,8 +12,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "libevent",
-            publicHeadersPath: "include"
+            name: "libevent"
         ),
         .testTarget(
             name: "libeventTests",
