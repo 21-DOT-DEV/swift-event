@@ -1,17 +1,16 @@
-// swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// swift-tools-version: 6.1
 
 import PackageDescription
 
 let package = Package(
-    name: "libevent.swift",
+    name: "swift-event",
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(name: "libevent", targets: ["libevent"]),
+        .library(name: "libevent", targets: ["libevent"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.7")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "libevent",
             publicHeadersPath: "include"
@@ -19,8 +18,8 @@ let package = Package(
         .testTarget(
             name: "libeventTests",
             dependencies: ["libevent"]
-        ),
+        )
     ],
-    swiftLanguageVersions: [.v5],
+    swiftLanguageModes: [.v6],
     cLanguageStandard: .gnu89
 )
