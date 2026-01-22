@@ -1,2 +1,31 @@
-Submodules/** linguist-vendored
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Swift files
+*.swift text diff=swift
+
+# C files (upstream library code)
+*.c text diff=c
+*.h text diff=c
+
+# Upstream C library in Sources should be marked as vendored
 Sources/libevent/** linguist-vendored
+
+# Generated config files
+Sources/libevent/src/evconfig-private.h        linguist-generated
+Sources/libevent/include/event2/event-config.h linguist-generated
+
+# Vendor/development directories
+Vendor/**                   export-ignore linguist-vendored
+.build/**                   export-ignore
+.swiftpm/**                 export-ignore
+
+# CI/CD and tooling configs
+subtree.yaml                export-ignore
+
+# Git and editor files
+.gitignore                  export-ignore
+.DS_Store                   export-ignore
+
+# Package lockfile (not needed for library consumers)
+Package.resolved            export-ignore linguist-generated

@@ -1,0 +1,24 @@
+# Managed by subtree CLI - https://github.com/21-DOT-DEV/subtree
+subtrees:
+- name: libevent
+  remote: https://github.com/libevent/libevent.git
+  prefix: Vendor/libevent
+  commit: 8b8d7be276dbd3ed37f2bec6b39bb36fd75a2f9b
+  branch: release-2.1.12-stable
+  squash: true
+  extractions:
+  - from: 'include/**/*.h'
+    to: Sources/libevent/
+  - from: '*.c'
+    to: Sources/libevent/src/
+    exclude:
+    - '*win32*'
+    - '*iocp*'
+    - '*openssl*'
+    - 'epoll*'
+    - 'devpoll*'
+    - 'evport*'
+    - 'arc4random*'
+    - 'bufferevent_async*'
+  - from: '*.h'
+    to: Sources/libevent/src/
