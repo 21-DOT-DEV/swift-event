@@ -1,6 +1,12 @@
 import Foundation
 import libevent
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
 /// A TCP server socket that accepts incoming connections.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public final class ServerSocket: @unchecked Sendable {
@@ -21,7 +27,11 @@ public final class ServerSocket: @unchecked Sendable {
     }
     
     deinit {
+        #if canImport(Darwin)
         Darwin.close(fd)
+        #else
+        Glibc.close(fd)
+        #endif
     }
     
     /// Accepts a single incoming connection.
@@ -35,7 +45,11 @@ public final class ServerSocket: @unchecked Sendable {
                 
                 let clientFd = withUnsafeMutablePointer(to: &clientAddr) { ptr in
                     ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                        #if canImport(Darwin)
                         Darwin.accept(fd, sockaddrPtr, &addrLen)
+                        #else
+                        Glibc.accept(fd, sockaddrPtr, &addrLen)
+                        #endif
                     }
                 }
                 
@@ -71,7 +85,11 @@ public final class ServerSocket: @unchecked Sendable {
     
     /// Closes the server socket.
     public func close() {
+        #if canImport(Darwin)
         Darwin.close(fd)
+        #else
+        Glibc.close(fd)
+        #endif
     }
 }
 

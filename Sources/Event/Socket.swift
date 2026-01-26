@@ -1,6 +1,12 @@
 import Foundation
 import libevent
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
 /// An async TCP socket backed by libevent.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public final class Socket: @unchecked Sendable {
@@ -26,7 +32,11 @@ public final class Socket: @unchecked Sendable {
     
     deinit {
         if ownsDescriptor {
+            #if canImport(Darwin)
             Darwin.close(fd)
+#else
+            Glibc.close(fd)
+#endif
         }
     }
     
@@ -40,7 +50,11 @@ public final class Socket: @unchecked Sendable {
     
     /// Connects to a remote address.
     public static func connect(to address: SocketAddress, loop: EventLoop = .shared) async throws -> Socket {
+        #if os(Linux)
+        let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+#else
         let fd = socket(AF_INET, SOCK_STREAM, 0)
+#endif
         guard fd >= 0 else {
             throw SocketError.socketCreationFailed(errno)
         }
@@ -51,7 +65,11 @@ public final class Socket: @unchecked Sendable {
             var addr = address.storage
             let result = withUnsafePointer(to: &addr) { ptr in
                 ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                    #if canImport(Darwin)
                     Darwin.connect(fd, sockaddrPtr, address.length)
+#else
+                    Glibc.connect(fd, sockaddrPtr, address.length)
+#endif
                 }
             }
             
@@ -86,7 +104,11 @@ public final class Socket: @unchecked Sendable {
     
     /// Creates a listening server socket on a specific address.
     public static func listen(on address: SocketAddress, backlog: Int32 = 128, loop: EventLoop = .shared) async throws -> ServerSocket {
+        #if os(Linux)
+        let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+#else
         let fd = socket(AF_INET, SOCK_STREAM, 0)
+#endif
         guard fd >= 0 else {
             throw SocketError.socketCreationFailed(errno)
         }
@@ -104,13 +126,26 @@ public final class Socket: @unchecked Sendable {
         }
         
         guard bindResult == 0 else {
+            #if canImport(Darwin)
             Darwin.close(fd)
+#else
+            Glibc.close(fd)
+#endif
             throw SocketError.bindFailed(errno)
         }
         
         // Listen
-        guard Darwin.listen(fd, backlog) == 0 else {
+        #if canImport(Darwin)
+        let listenResult = Darwin.listen(fd, backlog)
+        #else
+        let listenResult = Glibc.listen(fd, backlog)
+        #endif
+        guard listenResult == 0 else {
+            #if canImport(Darwin)
             Darwin.close(fd)
+            #else
+            Glibc.close(fd)
+            #endif
             throw SocketError.listenFailed(errno)
         }
         
@@ -126,7 +161,11 @@ public final class Socket: @unchecked Sendable {
                 let cont = Unmanaged<AnyObject>.fromOpaque(ctx!).takeRetainedValue() as! CheckedContinuationBox<Data, Error>
                 
                 var buffer = [UInt8](repeating: 0, count: 4096)
+                #if canImport(Darwin)
                 let bytesRead = Darwin.read(fd, &buffer, buffer.count)
+                #else
+                let bytesRead = Glibc.read(fd, &buffer, buffer.count)
+                #endif
                 
                 if bytesRead > 0 {
                     cont.continuation.resume(returning: Data(buffer[0..<bytesRead]))
@@ -149,7 +188,11 @@ public final class Socket: @unchecked Sendable {
                 let box = Unmanaged<AnyObject>.fromOpaque(ctx!).takeRetainedValue() as! WriteBox
                 
                 let result = box.data.withUnsafeBytes { ptr in
+                    #if canImport(Darwin)
                     Darwin.write(fd, ptr.baseAddress!, ptr.count)
+#else
+                    Glibc.write(fd, ptr.baseAddress!, ptr.count)
+#endif
                 }
                 
                 if result >= 0 {
@@ -166,7 +209,11 @@ public final class Socket: @unchecked Sendable {
     
     /// Closes the socket.
     public func close() async {
-        Darwin.close(fd)
+        #if canImport(Darwin)
+            Darwin.close(fd)
+#else
+            Glibc.close(fd)
+#endif
     }
 }
 

@@ -54,7 +54,8 @@
 #define EVENT__HAVE_ARC4RANDOM_BUF 1
 
 /* Define to 1 if you have the `arc4random_addrandom' function. */
-#define EVENT__HAVE_ARC4RANDOM_ADDRANDOM 1
+/* arc4random_addrandom is deprecated and not in libbsd */
+/* #undef EVENT__HAVE_ARC4RANDOM_ADDRANDOM */
 
 /* Define if clock_gettime is available in libc */
 #define EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1
@@ -94,6 +95,7 @@
 #define EVENT__HAVE_DLFCN_H 1
 
 /* Define if your system supports the epoll system calls */
+/* epoll.c not included in this package, so disable */
 /* #undef EVENT__HAVE_EPOLL */
 
 /* Define to 1 if you have the `epoll_create1' function. */
@@ -164,22 +166,43 @@
 #define EVENT__HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `issetugid' function. */
+#if defined(__linux__)
+/* libbsd doesn't provide issetugid on Ubuntu */
+#undef EVENT__HAVE_ISSETUGID
+#else
 #define EVENT__HAVE_ISSETUGID 1
+#endif
 
 /* Define to 1 if you have the `kqueue' function. */
+#if defined(__linux__)
+#undef EVENT__HAVE_KQUEUE
+#else
 #define EVENT__HAVE_KQUEUE 1
+#endif
 
 /* Define if the system has zlib */
 #define EVENT__HAVE_LIBZ 1
 
 /* Define to 1 if you have the `mach_absolute_time' function. */
+#if defined(__linux__)
+#undef EVENT__HAVE_MACH_ABSOLUTE_TIME
+#else
 #define EVENT__HAVE_MACH_ABSOLUTE_TIME 1
+#endif
 
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
+#if defined(__linux__)
+#undef EVENT__HAVE_MACH_MACH_TIME_H
+#else
 #define EVENT__HAVE_MACH_MACH_TIME_H 1
+#endif
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
+#if defined(__linux__)
+#undef EVENT__HAVE_MACH_MACH_H
+#else
 #define EVENT__HAVE_MACH_MACH_H 1
+#endif
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define EVENT__HAVE_MEMORY_H 1
@@ -311,7 +334,11 @@
 #define EVENT__HAVE_STRUCT_SOCKADDR_IN6 1
 
 /* Define to 1 if `sin6_len' is member of `struct sockaddr_in6'. */
+#if defined(__linux__)
+#undef EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+#else
 #define EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN 1
+#endif
 
 /* Define to 1 if `sin_len' is member of `struct sockaddr_in'. */
 /* #undef EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN */
@@ -341,7 +368,11 @@
 /* #undef EVENT__HAVE_SYS_EVENTFD_H */
 
 /* Define to 1 if you have the <sys/event.h> header file. */
+#if defined(__linux__)
+#undef EVENT__HAVE_SYS_EVENT_H
+#else
 #define EVENT__HAVE_SYS_EVENT_H 1
+#endif
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #define EVENT__HAVE_SYS_IOCTL_H 1
@@ -441,7 +472,11 @@
 #define EVENT__HAVE_VASPRINTF 1
 
 /* Define if kqueue works correctly with pipes */
+#if defined(__linux__)
+#undef EVENT__HAVE_WORKING_KQUEUE
+#else
 #define EVENT__HAVE_WORKING_KQUEUE 1
+#endif
 
 #ifdef __USE_UNUSED_DEFINITIONS__
 /* Define to necessary symbol if this constant uses a non-standard name on your system. */
