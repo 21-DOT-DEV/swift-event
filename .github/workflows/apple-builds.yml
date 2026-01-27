@@ -1,0 +1,68 @@
+name: Apple Platforms
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: swift test
+
+  ios:
+    name: iOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for iOS
+        run: |
+          xcrun xcodebuild \
+            -skipPackagePluginValidation \
+            build \
+            -scheme swift-event-Package \
+            -destination generic/platform=iOS
+
+  tvos:
+    name: tvOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for tvOS
+        run: |
+          xcrun xcodebuild \
+            -skipPackagePluginValidation \
+            build \
+            -scheme swift-event-Package \
+            -destination generic/platform=tvOS
+
+  watchos:
+    name: watchOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for watchOS
+        run: |
+          xcrun xcodebuild \
+            -skipPackagePluginValidation \
+            build \
+            -scheme swift-event-Package \
+            -destination generic/platform=watchOS
+
+  visionos:
+    name: visionOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for visionOS
+        run: |
+          xcrun xcodebuild \
+            -skipPackagePluginValidation \
+            build \
+            -scheme swift-event-Package \
+            -destination generic/platform=visionOS

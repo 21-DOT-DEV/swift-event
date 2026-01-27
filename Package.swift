@@ -13,7 +13,10 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "libevent"
+            name: "libevent",
+            linkerSettings: [
+                .linkedLibrary("bsd", .when(platforms: [.linux]))
+            ]
         ),
         .target(
             name: "Event",
