@@ -40,4 +40,12 @@ public final class EventLoop: @unchecked Sendable {
     public func stop() {
         event_base_loopbreak(base)
     }
+    
+    /// The I/O backend method in use (e.g., "epoll" on Linux, "kqueue" on macOS).
+    public var backendMethod: String {
+        guard let method = event_base_get_method(base) else {
+            return "unknown"
+        }
+        return String(cString: method)
+    }
 }

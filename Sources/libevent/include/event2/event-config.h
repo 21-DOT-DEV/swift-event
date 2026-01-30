@@ -45,13 +45,26 @@
 /* #undef EVENT__DISABLE_THREAD_SUPPORT */
 
 /* Define to 1 if you have the `accept4' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_ACCEPT4 1
+#else
 /* #undef EVENT__HAVE_ACCEPT4 */
+#endif
 
 /* Define to 1 if you have the `arc4random' function. */
+#if defined(__linux__)
+/* Linux: use bundled arc4random.c with getrandom() syscall */
+#undef EVENT__HAVE_ARC4RANDOM
+#else
 #define EVENT__HAVE_ARC4RANDOM 1
+#endif
 
 /* Define to 1 if you have the `arc4random_buf' function. */
+#if defined(__linux__)
+#undef EVENT__HAVE_ARC4RANDOM_BUF
+#else
 #define EVENT__HAVE_ARC4RANDOM_BUF 1
+#endif
 
 /* Define to 1 if you have the `arc4random_addrandom' function. */
 /* arc4random_addrandom is deprecated and not in libbsd */
@@ -77,7 +90,11 @@
 #define EVENT__HAVE_DECL_KERN_ARND 0
 
 /* Define to 1 if you have `getrandom' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_GETRANDOM 1
+#else
 /* #undef EVENT__HAVE_GETRANDOM */
+#endif
 
 /* Define if /dev/poll is available */
 /* #undef EVENT__HAVE_DEVPOLL */
@@ -95,17 +112,32 @@
 #define EVENT__HAVE_DLFCN_H 1
 
 /* Define if your system supports the epoll system calls */
-/* epoll.c not included in this package, so disable */
+#if defined(__linux__)
+#define EVENT__HAVE_EPOLL 1
+#else
 /* #undef EVENT__HAVE_EPOLL */
+#endif
 
 /* Define to 1 if you have the `epoll_create1' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_EPOLL_CREATE1 1
+#else
 /* #undef EVENT__HAVE_EPOLL_CREATE1 */
+#endif
 
 /* Define to 1 if you have the `epoll_ctl' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_EPOLL_CTL 1
+#else
 /* #undef EVENT__HAVE_EPOLL_CTL */
+#endif
 
 /* Define to 1 if you have the `eventfd' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_EVENTFD 1
+#else
 /* #undef EVENT__HAVE_EVENTFD */
+#endif
 
 /* Define if your system supports event ports */
 /* #undef EVENT__HAVE_EVENT_PORTS */
@@ -127,7 +159,11 @@
 
 /* TODO: Check for different gethostname argument counts. CheckPrototypeDefinition.cmake can be used. */
 /* Define this if you have any gethostbyname_r() */
+#if defined(__linux__)
+#define EVENT__HAVE_GETHOSTBYNAME_R 1
+#else
 /* #undef EVENT__HAVE_GETHOSTBYNAME_R */
+#endif
 
 /* Define this if gethostbyname_r takes 3 arguments */
 /* #undef EVENT__HAVE_GETHOSTBYNAME_R_3_ARG */
@@ -136,7 +172,11 @@
 /* #undef EVENT__HAVE_GETHOSTBYNAME_R_5_ARG */
 
 /* Define this if gethostbyname_r takes 6 arguments */
+#if defined(__linux__)
+#define EVENT__HAVE_GETHOSTBYNAME_R_6_ARG 1
+#else
 /* #undef EVENT__HAVE_GETHOSTBYNAME_R_6_ARG */
+#endif
 
 /* Define to 1 if you have the `getifaddrs' function. */
 #define EVENT__HAVE_GETIFADDRS 1
@@ -238,7 +278,11 @@
 #define EVENT__HAVE_PIPE 1
 
 /* Define to 1 if you have the `pipe2' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_PIPE2 1
+#else
 /* #undef EVENT__HAVE_PIPE2 */
+#endif
 
 /* Define to 1 if you have the `poll' function. */
 #define EVENT__HAVE_POLL 1
@@ -283,7 +327,11 @@
 #define EVENT__HAVE_SIGNAL 1
 
 /* Define to 1 if you have the `splice' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_SPLICE 1
+#else
 /* #undef EVENT__HAVE_SPLICE */
+#endif
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define EVENT__HAVE_STDARG_H 1
@@ -301,7 +349,12 @@
 #define EVENT__HAVE_STRING_H 1
 
 /* Define to 1 if you have the `strlcpy' function. */
+#if defined(__linux__)
+/* Linux: use bundled strlcpy.c */
+#undef EVENT__HAVE_STRLCPY
+#else
 #define EVENT__HAVE_STRLCPY 1
+#endif
 
 /* Define to 1 if you have the `strsep' function. */
 #define EVENT__HAVE_STRSEP 1
@@ -359,13 +412,25 @@
 #define EVENT__HAVE_STRUCT_LINGER 1
 
 /* Define to 1 if you have the `sysctl' function. */
+#if defined(__linux__)
+#undef EVENT__HAVE_SYSCTL
+#else
 #define EVENT__HAVE_SYSCTL 1
+#endif
 
 /* Define to 1 if you have the <sys/epoll.h> header file. */
+#if defined(__linux__)
+#define EVENT__HAVE_SYS_EPOLL_H 1
+#else
 /* #undef EVENT__HAVE_SYS_EPOLL_H */
+#endif
 
 /* Define to 1 if you have the <sys/eventfd.h> header file. */
+#if defined(__linux__)
+#define EVENT__HAVE_SYS_EVENTFD_H 1
+#else
 /* #undef EVENT__HAVE_SYS_EVENTFD_H */
+#endif
 
 /* Define to 1 if you have the <sys/event.h> header file. */
 #if defined(__linux__)
@@ -393,7 +458,11 @@
 #define EVENT__HAVE_SYS_SELECT_H 1
 
 /* Define to 1 if you have the <sys/sendfile.h> header file. */
+#if defined(__linux__)
+#define EVENT__HAVE_SYS_SENDFILE_H 1
+#else
 /* #undef EVENT__HAVE_SYS_SENDFILE_H */
+#endif
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #define EVENT__HAVE_SYS_SOCKET_H 1
@@ -405,10 +474,18 @@
 #define EVENT__HAVE_SYS_RANDOM_H 1
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
+#if defined(__linux__)
+#undef EVENT__HAVE_SYS_SYSCTL_H
+#else
 #define EVENT__HAVE_SYS_SYSCTL_H 1
+#endif
 
 /* Define to 1 if you have the <sys/timerfd.h> header file. */
+#if defined(__linux__)
+#define EVENT__HAVE_SYS_TIMERFD_H 1
+#else
 /* #undef EVENT__HAVE_SYS_TIMERFD_H */
+#endif
 
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define EVENT__HAVE_SYS_TIME_H 1
@@ -439,7 +516,11 @@
 
 
 /* Define to 1 if you have the `timerfd_create' function. */
+#if defined(__linux__)
+#define EVENT__HAVE_TIMERFD_CREATE 1
+#else
 /* #undef EVENT__HAVE_TIMERFD_CREATE */
+#endif
 
 /* Define if timerisset is defined in <sys/time.h> */
 #define EVENT__HAVE_TIMERISSET 1

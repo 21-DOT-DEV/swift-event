@@ -14,9 +14,15 @@ let package = Package(
     targets: [
         .target(
             name: "libevent",
-            linkerSettings: [
-                .linkedLibrary("bsd", .when(platforms: [.linux]))
+            exclude: ["src/arc4random.c"],
+            cSettings: [
+                // Enable GNU extensions on Linux (glibc features like gethostbyname_r)
+                .define("_GNU_SOURCE", .when(platforms: [.linux])),
             ]
+            // Note: For optimized builds in downstream projects, consider adding:
+            // swiftSettings: [.unsafeFlags(["-Xcc", "-fvisibility=hidden"])]
+            // This reduces binary size and improves load times, but unsafeFlags
+            // prevents use as a transitive dependency in other packages.
         ),
         .target(
             name: "Event",
