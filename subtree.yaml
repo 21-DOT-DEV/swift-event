@@ -15,10 +15,9 @@ subtrees:
     - '*win32*'
     - '*iocp*'
     - '*openssl*'
-    - 'epoll*'
+    - 'epoll_sub*'
     - 'devpoll*'
     - 'evport*'
-    - 'arc4random*'
     - 'bufferevent_async*'
   - from: '*.h'
     to: Sources/libevent/src/

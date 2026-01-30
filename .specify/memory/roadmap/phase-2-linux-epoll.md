@@ -1,6 +1,6 @@
 # Phase 2: Linux Epoll Backend
 
-**Status**: 🔜 Planned  
+**Status**: ✅ Complete  
 **Priority**: High  
 **Estimated Effort**: Small (<1 hour)
 
@@ -108,11 +108,11 @@ Check build output for `Compiling epoll.c` to confirm the backend is included.
 
 ## Acceptance Criteria
 
-- [ ] `epoll.c` compiles on Linux without errors
-- [ ] Docker build passes with epoll enabled
-- [ ] Build output shows `Compiling epoll.c`
-- [ ] macOS build still works (epoll disabled, kqueue used)
-- [ ] libevent uses epoll backend (verify in runtime if possible)
+- [x] `epoll.c` compiles on Linux without errors
+- [x] Docker build passes with epoll enabled
+- [x] Build output shows `Compiling epoll.c`
+- [x] macOS build still works (epoll disabled, kqueue used)
+- [ ] libevent uses epoll backend (verify in runtime if possible) — deferred to runtime verification phase
 
 ---
 

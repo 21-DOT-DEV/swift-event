@@ -27,4 +27,16 @@ struct EventTests {
             _ = try SocketAddress.ipv4("not.an.ip.address", port: 8080)
         }
     }
+    
+    @Test("EventLoop uses optimal backend")
+    func eventLoopBackend() {
+        let loop = EventLoop()
+        let method = loop.backendMethod
+        
+        #if os(Linux)
+        #expect(method == "epoll", "Expected epoll on Linux, got \(method)")
+        #elseif os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        #expect(method == "kqueue", "Expected kqueue on Apple platforms, got \(method)")
+        #endif
+    }
 }
