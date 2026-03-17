@@ -17,8 +17,10 @@ Sources/libevent/include/event2/event-config.h linguist-generated
 
 # Vendor/development directories
 Vendor/**                   export-ignore linguist-vendored
-.build/**                   export-ignore
-.swiftpm/**                 export-ignore
+.build/**                   export-ignore linguist-vendored
+.github/**                  export-ignore linguist-vendored
+.swiftpm/**                 export-ignore linguist-vendored
+.specify/**                 export-ignore linguist-vendored
 
 # CI/CD and tooling configs
 subtree.yaml                export-ignore
