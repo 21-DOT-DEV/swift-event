@@ -9,7 +9,7 @@ let package = Package(
         .library(name: "Event", targets: ["Event"])
     ],
     dependencies: [
-        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.7")
+        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13")
     ],
     targets: [
         .target(
