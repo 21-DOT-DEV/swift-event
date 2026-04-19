@@ -24,6 +24,15 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.BOT_TOKEN }}
 
+      - name: Enable development dependencies
+        run: |
+          # Delete any local tags pointing at HEAD so
+          # Context.gitInformation?.currentTag is nil and Package.swift's
+          # developmentDependencies resolve (incl. swift-plugin-subtree).
+          for tag in $(git tag --points-at HEAD); do
+            git tag -d "$tag"
+          done
+
       - name: Query CLI for pre-computed fields
         id: report
         env:
