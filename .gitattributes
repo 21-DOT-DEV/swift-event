@@ -21,12 +21,17 @@ Vendor/**                   export-ignore linguist-vendored
 .github/**                  export-ignore linguist-vendored
 .swiftpm/**                 export-ignore linguist-vendored
 .specify/**                 export-ignore linguist-vendored
+.windsurf/**                export-ignore linguist-vendored
+specs/**                    export-ignore linguist-vendored
 
 # CI/CD and tooling configs
+Dockerfile                  export-ignore
+.dockerignore               export-ignore
 subtree.yaml                export-ignore
 
 # Git and editor files
 .gitignore                  export-ignore
+.gitmodules                 export-ignore
 .DS_Store                   export-ignore
 
 # Package lockfile (not needed for library consumers)
