@@ -6,63 +6,87 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   macos:
     name: macOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build and test
         run: swift test
 
   ios:
     name: iOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
+    env:
+      SCHEME: swift-event-Package
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for iOS
         run: |
           xcrun xcodebuild \
+            -skipMacroValidation \
             -skipPackagePluginValidation \
             build \
-            -scheme swift-event-Package \
+            -scheme "$SCHEME" \
             -destination generic/platform=iOS
 
   tvos:
     name: tvOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
+    env:
+      SCHEME: swift-event-Package
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for tvOS
         run: |
           xcrun xcodebuild \
+            -skipMacroValidation \
             -skipPackagePluginValidation \
             build \
-            -scheme swift-event-Package \
+            -scheme "$SCHEME" \
             -destination generic/platform=tvOS
 
   watchos:
     name: watchOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
+    env:
+      SCHEME: swift-event-Package
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for watchOS
         run: |
           xcrun xcodebuild \
+            -skipMacroValidation \
             -skipPackagePluginValidation \
             build \
-            -scheme swift-event-Package \
+            -scheme "$SCHEME" \
             -destination generic/platform=watchOS
 
   visionos:
     name: visionOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions:
+      contents: read
+    env:
+      SCHEME: swift-event-Package
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for visionOS
         run: |
           xcrun xcodebuild \
+            -skipMacroValidation \
             -skipPackagePluginValidation \
             build \
-            -scheme swift-event-Package \
+            -scheme "$SCHEME" \
             -destination generic/platform=visionOS
