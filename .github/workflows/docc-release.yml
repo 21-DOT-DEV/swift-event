@@ -69,6 +69,8 @@ jobs:
             --analyze \
             --warnings-as-errors \
             --enable-experimental-markdown-output \
+            --transform-for-static-hosting \
+            --experimental-transform-for-static-hosting-with-content \
             --source-service github \
             --source-service-base-url "$SOURCE_SERVICE_BASE_URL" \
             --checkout-path "$GITHUB_WORKSPACE" \
