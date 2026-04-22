@@ -18,6 +18,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build and test
         run: swift test
+      - name: Validate DocC catalog
+        run: swift package generate-documentation --target Event --analyze --warnings-as-errors
 
   ios:
     name: iOS
