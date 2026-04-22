@@ -26,23 +26,40 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+      DEVELOPER_DIR: "/Applications/Xcode_26.4.app/Contents/Developer"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           ref: ${{ github.event.inputs.release_tag || github.ref }}
-          fetch-depth: 0  # ensure git tag -d sees the tag
+          fetch-depth: 0  # ensure tags are fetched so we can delete them below
 
       - name: Enable development dependencies
-        run: git tag -d "$RELEASE_TAG" 2>/dev/null || true
+        # Delete ALL tags at HEAD so Context.gitInformation?.currentTag is nil,
+        # which flips the `developmentDependencies` guard in Package.swift and
+        # includes swift-docc-plugin. Single-tag deletion fails when a commit
+        # has sibling tags (e.g., 0.1.1 + 0.1.1-prerelease-0), causing
+        # "Unknown subcommand or plugin name 'generate-documentation'".
+        run: git tag --points-at HEAD | xargs -r -n 1 git tag -d
 
-      - name: Verify Swift toolchain
-        run: swift --version
+      - name: Echo toolchain versions
+        run: |
+          {
+            echo "### Toolchain"
+            echo ""
+            echo '```'
+            swift --version
+            xcodebuild -version
+            xcrun docc --version 2>/dev/null || echo "docc --version: unsupported by this docc build"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build package
         run: swift build
 
       - name: Build DocC Archive
+        env:
+          SOURCE_SERVICE_BASE_URL: "https://github.com/${{ github.repository }}/blob/${{ github.event.inputs.release_tag || github.ref_name }}"
         run: |
           mkdir -p docs
           swift package \
@@ -51,13 +68,34 @@ jobs:
             --target Event \
             --analyze \
             --warnings-as-errors \
+            --enable-experimental-markdown-output \
+            --source-service github \
+            --source-service-base-url "$SOURCE_SERVICE_BASE_URL" \
+            --checkout-path "$GITHUB_WORKSPACE" \
             --output-path ./docs/Event.doccarchive
 
       - name: Sanity-check archive
         run: |
           test -d ./docs/Event.doccarchive
-          test -f ./docs/Event.doccarchive/metadata.json || \
-            test -f ./docs/Event.doccarchive/index/index.json
+          test -f ./docs/Event.doccarchive/metadata.json
+
+          BUNDLE_ID=$(jq -r '.bundleID // empty' ./docs/Event.doccarchive/metadata.json)
+          echo "Bundle ID: ${BUNDLE_ID}"
+          [ -n "$BUNDLE_ID" ] || { echo "::error::metadata.json missing bundleID"; exit 1; }
+
+          MD_COUNT=$(find ./docs/Event.doccarchive -name '*.md' | wc -l | tr -d ' ')
+          echo "Markdown file count: ${MD_COUNT}"
+          [ "$MD_COUNT" -gt 0 ] || { echo "::error::No .md files found; --enable-experimental-markdown-output may have regressed"; exit 1; }
+
+      - name: Smoke-test merge + static hosting
+        run: |
+          xcrun docc merge ./docs/Event.doccarchive \
+            --output-path /tmp/merge-test.doccarchive
+          xcrun docc process-archive transform-for-static-hosting \
+            /tmp/merge-test.doccarchive \
+            --output-path /tmp/merge-test-static
+          test -f /tmp/merge-test-static/index.html
+          test -d /tmp/merge-test-static/documentation/event
 
       - name: Zip DocC Archive
         run: |
@@ -69,10 +107,14 @@ jobs:
           gh release upload "$RELEASE_TAG" docs/Event.doccarchive.zip --clobber
 
       - name: Write step summary
+        # GitHub computes + exposes the asset SHA-256 automatically (visible on
+        # the release page + via `gh release view --json assets` .digest field).
+        # We hash inline here only for display in this job's step summary.
         run: |
           SIZE=$(ls -lh docs/Event.doccarchive.zip | awk '{print $5}')
           SHA=$(shasum -a 256 docs/Event.doccarchive.zip | awk '{print $1}')
           {
+            echo ""
             echo "### DocC Release"
             echo ""
             echo "- **Release**: \`$RELEASE_TAG\`"
