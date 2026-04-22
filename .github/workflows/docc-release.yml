@@ -1,0 +1,82 @@
+name: DocC Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing release tag to upload the DocC archive to (e.g. 0.1.0 or 0.1.0-alpha.1). The release must already exist.'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: docc-release-${{ github.event.inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  docc:
+    name: Build DocC Archive
+    runs-on: macos-26
+    timeout-minutes: 20
+    permissions:
+      contents: write  # for gh release upload
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.release_tag || github.ref }}
+          fetch-depth: 0  # ensure git tag -d sees the tag
+
+      - name: Enable development dependencies
+        run: git tag -d "$RELEASE_TAG" 2>/dev/null || true
+
+      - name: Verify Swift toolchain
+        run: swift --version
+
+      - name: Build package
+        run: swift build
+
+      - name: Build DocC Archive
+        run: |
+          mkdir -p docs
+          swift package \
+            --allow-writing-to-directory ./docs \
+            generate-documentation \
+            --target Event \
+            --analyze \
+            --warnings-as-errors \
+            --output-path ./docs/Event.doccarchive
+
+      - name: Sanity-check archive
+        run: |
+          test -d ./docs/Event.doccarchive
+          test -f ./docs/Event.doccarchive/metadata.json || \
+            test -f ./docs/Event.doccarchive/index/index.json
+
+      - name: Zip DocC Archive
+        run: |
+          cp LICENSE docs/LICENSE
+          cd docs && 7z a -tzip -mx=9 Event.doccarchive.zip Event.doccarchive LICENSE
+
+      - name: Upload to Release
+        run: |
+          gh release upload "$RELEASE_TAG" docs/Event.doccarchive.zip --clobber
+
+      - name: Write step summary
+        run: |
+          SIZE=$(ls -lh docs/Event.doccarchive.zip | awk '{print $5}')
+          SHA=$(shasum -a 256 docs/Event.doccarchive.zip | awk '{print $1}')
+          {
+            echo "### DocC Release"
+            echo ""
+            echo "- **Release**: \`$RELEASE_TAG\`"
+            echo "- **Archive**: \`Event.doccarchive.zip\`"
+            echo "- **Size**: $SIZE"
+            echo "- **SHA-256**: \`$SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"

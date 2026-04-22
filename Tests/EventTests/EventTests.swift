@@ -27,7 +27,32 @@ struct EventTests {
             _ = try SocketAddress.ipv4("not.an.ip.address", port: 8080)
         }
     }
-    
+
+    @Test("SocketAddress can create IPv6 address")
+    func socketAddressIPv6() throws {
+        let address = try SocketAddress.ipv6("::1", port: 9090)
+        #expect(address.port == 9090)
+    }
+
+    @Test("SocketAddress rejects invalid IPv6 address")
+    func socketAddressIPv6Invalid() {
+        #expect(throws: SocketError.self) {
+            _ = try SocketAddress.ipv6("not.ipv6", port: 80)
+        }
+    }
+
+    @Test("SocketError.invalidAddress preserves the user-supplied host string")
+    func socketErrorInvalidAddressPayload() {
+        do {
+            _ = try SocketAddress.ipv4("definitely.not.an.ip", port: 8080)
+            Issue.record("Expected SocketAddress.ipv4 to throw for non-numeric host")
+        } catch let SocketError.invalidAddress(host) {
+            #expect(host == "definitely.not.an.ip")
+        } catch {
+            Issue.record("Unexpected error type: \(error)")
+        }
+    }
+
     @Test("EventLoop uses optimal backend")
     func eventLoopBackend() {
         let loop = EventLoop()

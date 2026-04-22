@@ -1,7 +1,7 @@
 # swift-event Product Roadmap
 
-**Version**: v1.0.0  
-**Last Updated**: 2026-01-30  
+**Version**: v1.0.4  
+**Last Updated**: 2026-04-21  
 
 ---
 
@@ -40,6 +40,7 @@ Provide a Swift wrapper for libevent, enabling high-performance asynchronous I/O
 | **2.1** | Remove libbsd Dependency | ✅ Complete | [phase-2.1-remove-libbsd.md](roadmap/phase-2.1-remove-libbsd.md) |
 | **2.5** | Linux Optimizations | ✅ Complete | [phase-2.5-linux-optimizations.md](roadmap/phase-2.5-linux-optimizations.md) |
 | **3** | CI & Quality Gates | ✅ Complete | — |
+| **3.5** | DocC & Documentation Parity | ✅ Complete | — |
 | **4** | Benchmark Suite | 🔜 Planned | — |
 
 ---
@@ -63,3 +64,4 @@ Provide a Swift wrapper for libevent, enabling high-performance asynchronous I/O
 | v1.0.1 | 2026-01-30 | Enhancement | Phase 2.1: Remove libbsd dependency, use bundled implementations |
 | v1.0.2 | 2026-01-30 | Enhancement | Phase 2.5: Linux optimizations (pipe2, eventfd, accept4, splice) |
 | v1.0.3 | 2026-01-30 | Enhancement | Runtime backend verification test (epoll/kqueue) |
+| v1.0.4 | 2026-04-21 | Enhancement | Phase 3.5: DocC catalog + articles + inline rationales, platform normalization, constitutional compliance (III.1, VII) |

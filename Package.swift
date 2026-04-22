@@ -4,6 +4,13 @@ import PackageDescription
 
 let package = Package(
     name: "swift-event",
+    platforms: [
+        .macOS(.v13),
+        .iOS(.v16),
+        .tvOS(.v16),
+        .watchOS(.v9),
+        .visionOS(.v1)
+    ],
     products: [
         .library(name: "libevent", targets: ["libevent"]),
         .library(name: "Event", targets: ["Event"])
@@ -47,7 +54,8 @@ extension Package.Dependency {
     static var developmentDependencies: [Package.Dependency] {
         guard Context.gitInformation?.currentTag == nil else { return [] }
         return [
-            .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13")
+            .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
+            .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.6")
         ]
     }
 }
