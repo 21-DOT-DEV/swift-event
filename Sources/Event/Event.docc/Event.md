@@ -4,11 +4,11 @@
     @TitleHeading("Framework")
 }
 
-Async TCP sockets and event-loop primitives for Swift, backed by a vendored build of [libevent](https://github.com/libevent/libevent).
+Async TCP sockets and event-loop primitives for Swift, backed by a vendored build of libevent.
 
 ## Overview
 
-`Event` is the idiomatic Swift face of this package. It wraps libevent 2.1.12's event-dispatch machinery behind Swift 6.1 structured concurrency so you can write `async`/`await` code against non-blocking TCP sockets on macOS 13+, iOS 16+, tvOS 16+, watchOS 9+, visionOS 1+, and Linux (Ubuntu 22.04+). The package selects the most efficient I/O multiplexer available at runtime — **kqueue** on Apple platforms, **epoll** on Linux — and exposes it through a small, typed surface with no raw `OpaquePointer` leakage.
+`Event` is the idiomatic Swift face of this package. It wraps [libevent](https://github.com/libevent/libevent) 2.1.12's event-dispatch machinery behind Swift 6.1 structured concurrency so you can write `async`/`await` code against non-blocking TCP sockets on macOS 13+, iOS 16+, tvOS 16+, watchOS 9+, visionOS 1+, and Linux (Ubuntu 22.04+). The package selects the most efficient I/O multiplexer available at runtime — **kqueue** on Apple platforms, **epoll** on Linux — and exposes it through a small, typed surface with no raw `OpaquePointer` leakage.
 
 Direct-use capabilities shipping today:
 
