@@ -60,8 +60,9 @@ The `AGENTS.md` files at the repository root and under `Vendor/` list the exclus
 
 The Apple platform floor matches Swift 6.1's minimum deployment targets. The Linux floor reflects the swift-event CI matrix: anything older than Ubuntu 22.04 is not tested and not supported, though libevent itself is portable to much older glibc revisions.
 
-### Next Steps
+## See Also
 
-- <doc:ProductionConsiderations> — concurrency model, resource ownership, and the list of capabilities not yet shipping.
-- <doc:ChoosingLibeventVsEvent> — when to reach past the Swift API into the raw `libevent` product.
-- ``EventLoop`` — the public interface to the `event_base` wrapped here.
+- <doc:GettingStarted>
+- <doc:ChoosingLibeventVsEvent>
+- <doc:ProductionConsiderations>
+- ``EventLoop``

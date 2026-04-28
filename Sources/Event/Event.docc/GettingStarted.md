@@ -102,9 +102,9 @@ targets: [
 
 This pattern is the intended way to bring libevent into a Swift package that has its own C sources without bundling a duplicate libevent build. See <doc:ChoosingLibeventVsEvent> for the full product-selection rationale.
 
-### Next Steps
+## See Also
 
-- <doc:BackendAndPlatforms> — the kqueue / epoll story, runtime invariant, and excluded backends.
-- <doc:ProductionConsiderations> — pre-1.0 caveats, the honest concurrency model, resource-ownership rules, and behaviors not yet shipping.
-- <doc:ChoosingLibeventVsEvent> — when to import the Swift API vs the raw C binding product.
-- ``SocketError`` — the single failure surface for every throwing call in the module.
+- <doc:BackendAndPlatforms>
+- <doc:ChoosingLibeventVsEvent>
+- <doc:ProductionConsiderations>
+- ``SocketError``
