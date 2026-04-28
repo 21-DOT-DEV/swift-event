@@ -76,8 +76,8 @@ The following capabilities are out of scope for this release. Each has been cons
 
 Security vulnerabilities in the Swift API or in the vendored libevent extraction should be reported via the private channel described in [the 21-DOT-DEV SECURITY.md](https://github.com/21-DOT-DEV/.github/blob/main/SECURITY.md). Do not open public issues for vulnerabilities.
 
-### Next Steps
+## See Also
 
-- <doc:GettingStarted> — client and server walkthroughs backed by executable snippets.
-- <doc:BackendAndPlatforms> — kqueue / epoll selection and the platform matrix.
-- <doc:ChoosingLibeventVsEvent> — product-selection guidance for consumers who may need raw `libevent`.
+- <doc:GettingStarted>
+- <doc:BackendAndPlatforms>
+- <doc:ChoosingLibeventVsEvent>

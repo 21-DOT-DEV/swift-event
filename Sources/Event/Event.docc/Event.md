@@ -4,7 +4,7 @@
     @TitleHeading("Framework")
 }
 
-Async TCP sockets and event-loop primitives for Swift, backed by a vendored build of libevent.
+Async TCP sockets and event-loop primitives for Swift on top of `kqueue` (Apple platforms) or `epoll` (Linux), backed by a vendored build of libevent.
 
 ## Overview
 
@@ -32,11 +32,24 @@ Beyond its direct API, this package ships the raw `libevent` C binding product t
 
 API positioning: `Event` is a thin, libevent-direct, async/await wrapper. It is not a replacement for [SwiftNIO](https://github.com/apple/swift-nio) — if you need NIO's channel pipelines, back-pressure protocol handlers, or HTTP/2 / WebSocket / TLS off-the-shelf, reach for NIO. Reach for `Event` when you want minimal abstraction over the platform multiplexer, a small dependency surface, or tight interop with C code that already speaks libevent.
 
+### Where to start
+
+New to `Event`? Start with <doc:GettingStarted> for a task-oriented walkthrough of inspecting the I/O backend, writing async TCP clients, and writing async TCP servers. The `kqueue`/`epoll` selection story and the runtime invariant that enforces it are covered in <doc:BackendAndPlatforms>. Picking between the idiomatic Swift API and the raw C bindings is covered in <doc:ChoosingLibeventVsEvent>. Pre-1.0 caveats, the concurrency model, and capabilities not yet shipping live in <doc:ProductionConsiderations>.
+
 ## Topics
+
+### Guides
+
+- <doc:GettingStarted>
+- <doc:ChoosingLibeventVsEvent>
+
+### Concepts
+
+- <doc:BackendAndPlatforms>
+- <doc:ProductionConsiderations>
 
 ### Essentials
 
-- <doc:GettingStarted>
 - ``EventLoop``
 - ``Socket``
 - ``ServerSocket``
@@ -48,12 +61,3 @@ API positioning: `Event` is a thin, libevent-direct, async/await wrapper. It is 
 ### Errors
 
 - ``SocketError``
-
-### Guides
-
-- <doc:ChoosingLibeventVsEvent>
-
-### Concepts
-
-- <doc:BackendAndPlatforms>
-- <doc:ProductionConsiderations>

@@ -78,8 +78,8 @@ A single target can import both `Event` and `libevent` without runtime duplicati
 
 Transitive consumers behave the same way. An application that depends on `swift-tor` (which pulls in `libevent` from this package) and separately imports `Event` to open a TCP client connection will see one libevent runtime, not two. This keeps log output, DNS caches, and any future shared-state behavior coherent across the dependency graph.
 
-### Next Steps
+## See Also
 
-- <doc:GettingStarted> — client and server walkthroughs using the `Event` Swift API.
-- <doc:BackendAndPlatforms> — the kqueue / epoll story, platform matrix, and excluded backends.
-- <doc:ProductionConsiderations> — concurrency model, resource-ownership rules, pre-1.0 caveats.
+- <doc:GettingStarted>
+- <doc:BackendAndPlatforms>
+- <doc:ProductionConsiderations>

@@ -6,6 +6,8 @@
 
 Modern Swift bindings for [libevent](https://github.com/libevent/libevent) — a type-safe Swift 6.1 async/await API over `kqueue` on Apple platforms and `epoll` on Linux, plus a raw `libevent` product other Swift packages can link when they need libevent primitives directly.
 
+📚 [Documentation](https://docs.21.dev/documentation/event/)
+
 > [!CAUTION]
 > Pre-1.0 and no version tag has been published yet. Version-based dependencies will be available after the first release; until then, use `branch: "main"`. See the [Production Considerations](Sources/Event/Event.docc/ProductionConsiderations.md) guide for the concurrency model, resource-ownership rules, and the list of capabilities not yet shipping.
 
@@ -53,7 +55,15 @@ print(loop.backendMethod)
 // epoll    (on Linux)
 ```
 
-For **TCP client and server walkthroughs**, **IPv6 addresses**, and the **product-selection guide** (`Event` vs `libevent`), see the DocC catalog under [`Sources/Event/Event.docc/`](Sources/Event/Event.docc/) — start with [Getting Started](Sources/Event/Event.docc/GettingStarted.md). Every example there is backed by an executable SwiftPM snippet, so nothing drifts from the code. Build the full hyperlinked archive locally with `swift package generate-documentation --target Event`.
+*→ Full API: [docs.21.dev/documentation/event/eventloop](https://docs.21.dev/documentation/event/eventloop)*
+
+For **TCP client and server walkthroughs**, **IPv6 addresses**, and the **product-selection guide** (`Event` vs `libevent`), explore the hosted documentation:
+
+- [Getting Started](https://docs.21.dev/documentation/event/gettingstarted) — task-oriented walkthrough of every shipping capability
+- [Backend & Platforms](https://docs.21.dev/documentation/event/backendandplatforms) — the `kqueue` / `epoll` story and the runtime invariant that enforces it
+- [Production Considerations](https://docs.21.dev/documentation/event/productionconsiderations) — pre-1.0 caveats, concurrency model, capabilities not yet shipping
+
+Every example in the DocC catalog under [`Sources/Event/Event.docc/`](Sources/Event/Event.docc/) is backed by an executable SwiftPM snippet, so nothing drifts from the code. Build the full hyperlinked archive locally with `swift package generate-documentation --target Event`.
 
 ## Requirements
 
