@@ -1,6 +1,5 @@
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Apple Platforms](https://github.com/21-DOT-DEV/swift-event/actions/workflows/apple-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-event/actions/workflows/apple-builds.yml)
-[![Docker Builds](https://github.com/21-DOT-DEV/swift-event/actions/workflows/docker-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-event/actions/workflows/docker-builds.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Apple Platforms](https://github.com/21-DOT-DEV/swift-event/actions/workflows/apple-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-event/actions/workflows/apple-builds.yml) [![Docker Builds](https://github.com/21-DOT-DEV/swift-event/actions/workflows/docker-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-event/actions/workflows/docker-builds.yml)
+[![Swift Versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2F21-DOT-DEV%2Fswift-event%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/21-DOT-DEV/swift-event) [![Platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2F21-DOT-DEV%2Fswift-event%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/21-DOT-DEV/swift-event)
 
 # 🌐 swift-event
 
