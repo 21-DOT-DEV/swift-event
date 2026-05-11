@@ -6,7 +6,8 @@ A Swift 6.1 wrapper around [libevent](https://github.com/libevent/libevent) prov
 
 - Build: `swift build`
 - Test: `swift test`
-- Linux build: `docker build .`
+- External-consumer probe: `cd Examples/LinuxConsumerProbe && swift build`
+- Linux build: `docker build .` (also builds the consumer probe)
 
 ## Non-obvious patterns
 
@@ -17,6 +18,7 @@ A Swift 6.1 wrapper around [libevent](https://github.com/libevent/libevent) prov
 - **Linux-only C define**: `_GNU_SOURCE` is defined on Linux only, to enable glibc features like `gethostbyname_r`.
 - **Backend runtime verification**: `EventLoop().backendMethod` MUST report `kqueue` on Apple platforms and `epoll` on Linux. This is an invariant enforced by a test (`EventTests › EventLoop uses optimal backend`).
 - **Forbidden backends** (per constitution Principle I): Windows IOCP, Solaris `devpoll`/`evport`, OpenSSL-backed bufferevents. Do not port or bundle these.
+- **libevent modulemap is shim-based**: `Sources/libevent/include/module.modulemap` claims only `swift-shim.h`, NOT the `event2/*.h` family. The shim header textually `#include`s every public libevent header, so Swift's `import libevent` sees the full C API while C++ consumers using Swift C++ interop (`-fmodules` forced) can `#include <event2/...>` as a plain textual include without hitting the "module 'libevent' is incompatible with feature 'cplusplus'" error. Do NOT change the modulemap to `umbrella "."` — that breaks downstream packages like swift-bitcoin. Regression coverage lives in `Examples/LinuxConsumerProbe/`.
 
 ## Boundaries
 
@@ -32,6 +34,7 @@ Directory-specific `AGENTS.md` files provide additional context:
 - `Sources/AGENTS.md` — Swift targets, C bindings, extraction paths
 - `Tests/AGENTS.md` — Swift Testing framework, backend-verification invariant
 - `Vendor/AGENTS.md` — vendored libevent sources and subtree sync rules
+- `Examples/LinuxConsumerProbe/AGENTS.md` — external-consumer regression coverage (libevent modulemap, C++ interop)
 
 ## Maintenance
 

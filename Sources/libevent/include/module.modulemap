@@ -1,13 +1,20 @@
 module libevent {
-    // `requires !cplusplus` makes Clang skip module compilation under C++
-    // consumers (libevent's headers rely on caller-defined `EVENT__*`
-    // macros and don't parse cleanly as an isolated module in C++ mode).
-    // Those consumers fall back to textual `#include` via the `-I` paths
-    // SwiftPM puts on the search path. Swift and C consumers parse the
-    // directory umbrella below and get the full libevent API, including
-    // the `event2/*_struct.h` family that isn't reachable from the
-    // public `event2/event.h` umbrella header alone.
+    // `requires !cplusplus` keeps this module out of C++ translation
+    // units. C and Swift consumers (where `__cplusplus` is not defined)
+    // see the full libevent API via the shim umbrella below.
     requires !cplusplus
-    umbrella "."
+
+    // Only `swift-shim.h` is claimed by this module. The shim textually
+    // includes every public `event2/*.h` and top-level legacy header, so
+    // Swift's `import libevent` exposes the whole C API.
+    //
+    // Crucially, `event2/*.h` themselves are NOT listed here. Downstream
+    // packages that use Swift C++ interop (which forces `-fmodules` on in
+    // C++ mode) must be able to resolve `#include <event2/event.h>` as a
+    // plain textual include via the `-I` search path. Because those
+    // headers are unclaimed by any module, Clang does exactly that —
+    // avoiding the "module 'libevent' is incompatible with feature
+    // 'cplusplus'" error that an `umbrella "."` declaration would trigger.
+    header "swift-shim.h"
     export *
 }

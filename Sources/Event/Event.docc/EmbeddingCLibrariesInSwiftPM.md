@@ -94,23 +94,37 @@ Two non-obvious points:
 
 ### Step 3 — The module map
 
-**Use `umbrella "."` (directory-wide) for non-trivial C libraries — it is the safer default than `umbrella header "foo.h"`.** When SwiftPM sees a `module.modulemap` inside `Sources/<target>/include/`, it uses *your* map and skips its automatic generation. The minimal working map for a non-trivial C library is:
+**Use a hand-written shim header listed in the modulemap; do NOT use `umbrella "."`.** When SwiftPM sees a `module.modulemap` inside `Sources/<target>/include/`, it uses *your* map and skips its automatic generation. The recommended pattern for a non-trivial C library is:
 
 ```
 module libfoo {
     requires !cplusplus
-    umbrella "."
+    header "swift-shim.h"
     export *
 }
 ```
 
+…paired with `Sources/<target>/include/swift-shim.h`:
+
+```c
+#ifndef LIBFOO_SWIFT_SHIM_H
+#define LIBFOO_SWIFT_SHIM_H
+#include "foo.h"
+#include "foo/core.h"
+#include "foo/ext.h"
+/* …every public header you want Swift consumers to see… */
+#endif
+```
+
 What each line does:
 
-- **`requires !cplusplus`** — Clang skips module compilation when the consumer is C++. C++ consumers fall back to textual `#include` via the `-I` paths SwiftPM puts on the search path. This matters because many C library headers don't parse cleanly as an isolated Clang module under C++ rules; the textual-include fallback bypasses that.
-- **`umbrella "."`** — declares the directory containing the modulemap as the umbrella. All `.h` files in that directory and its subdirectories become part of the module. This is much less brittle than listing each header by hand or using `umbrella header "foo.h"` — the latter requires every transitive header to be reachable through `#include` chains from the umbrella header, which fails for header families like libevent's `event2/*_struct.h` that aren't pulled in by the public `event2/event.h`.
-- **`export *`** — re-exports every imported symbol so Swift consumers don't need to qualify with the submodule prefix.
+- **`requires !cplusplus`** — Clang skips this module when the consumer is C++ (i.e. `__cplusplus` is defined). The decisive reason is downstream **Swift C++ interop**: when a consumer compiles C++ with `-cxx-interoperability-mode=default`, Clang is invoked with `-fmodules` forced on, and `requires !cplusplus` keeps libfoo from being loaded as a module in C++ TUs. The module is still available to Swift and plain-C consumers.
+- **`header "swift-shim.h"`** — claims a single shim header for the module. The shim textually `#include`s every public C header you want Swift to see; transitive includes propagate symbols into Swift's view. **Only the shim itself is owned by the module — none of the underlying `foo/*.h` headers are claimed.** That's the critical property: a downstream C++ consumer doing `#include <foo/core.h>` via the `-I` path resolves to a header Clang considers unclaimed, so it textually includes it instead of attempting a module load that would fail the `requires !cplusplus` clause.
+- **`export *`** — re-exports every imported symbol so Swift consumers don't need to qualify with submodule prefixes.
 
-If your library's headers happen to live in subdirectories AND the public API is reachable through one umbrella header AND you don't need the `*_struct.h`-family workaround, you can use the simpler form:
+> Warning: **Do not use `umbrella "."`.** It looks tempting because it auto-includes every header in the directory, but it has a fatal interaction with Swift C++ interop: `umbrella "."` claims every `foo/*.h` as part of the libfoo module, so a C++ TU doing `#include <foo/core.h>` triggers Clang to load the module, evaluate `requires !cplusplus`, fail, and emit `error: module 'libfoo' is incompatible with feature 'cplusplus'` instead of falling through to a textual include. This is exactly the regression that broke swift-bitcoin in swift-event 0.2.0; the shim-header pattern was introduced to fix it. The `Examples/LinuxConsumerProbe/` package in this repo (built by every CI run) is the regression coverage that catches it.
+
+If your library's public API is reachable through one umbrella header AND no downstream consumer uses Swift C++ interop, you can use the simpler form:
 
 ```
 module libfoo {
@@ -120,7 +134,7 @@ module libfoo {
 }
 ```
 
-But the directory-umbrella form (`umbrella "."`) is the safer default for non-trivial libraries.
+…but `umbrella header "foo.h"` claims every header transitively reachable from `foo.h`, which is the same trap as `umbrella "."` for C++ consumers. The shim-header form is the safe default for a library you expect anyone to consume from a C++-interop Swift project.
 
 ### Step 4 — Exposing the C target as a SwiftPM product
 
@@ -189,7 +203,9 @@ final class libeventTests: XCTestCase {
 }
 ```
 
-If this test passes, your downstream consumers will be able to import your C product. If it fails (typically with "cannot find 'X' in scope" errors), your module map is wrong — usually the umbrella isn't covering all the headers downstream code needs.
+If this test passes, your downstream consumers will be able to import your C product. If it fails (typically with "cannot find 'X' in scope" errors), your module map is wrong — usually the shim header is missing an `#include`.
+
+For higher-confidence coverage — particularly for the C++ interop case Step 3 warns about — also build a *separate* SPM package that depends on yours via `path: "../.."` and consumes it from a Swift target with `interoperabilityMode(.Cxx)` over a C++ shim. This package's `Examples/LinuxConsumerProbe/` is the worked example: it has four targets (pure C++, plain Swift, Swift-with-Cxx-interop over a C++ shim) that together exercise every modulemap regression in one `swift build`. Wiring the probe into both the Linux Dockerfile and the macOS CI job means a regression fails the build before it can ship to consumers.
 
 ### Embedded Swift compatibility (forward-looking)
 
@@ -201,7 +217,9 @@ This is forward-looking — we have not yet certified swift-event's `libevent` p
 
 **"Header X not found" inside the C library's own .c files.** Your `cSettings` is missing a header search path. Add `.headerSearchPath("include/foo")` for any subdirectory the C sources `#include "foo/bar.h"` from.
 
-**`module map missing umbrella header`-style warnings under Swift compilation.** Some headers in your `include/` aren't reachable from your declared umbrella. Switch to `umbrella "."` (directory-wide).
+**Swift consumer can't see a symbol you expected to be public.** The header that declares it isn't reachable from your shim. Add it to `swift-shim.h`. Resist the urge to "simplify" by switching to `umbrella "."` — see Step 3's warning.
+
+**Downstream C++ consumer fails with `module '<libfoo>' is incompatible with feature 'cplusplus'`.** Your modulemap is claiming the C headers (almost always via `umbrella "."` or `umbrella header "foo.h"`). Switch to the shim-header form in Step 3 so the `<foo/...>` headers stay unclaimed and resolve as textual includes via the `-I` path.
 
 **`ambiguous use of 'X'` errors in Swift consumers.** Your library exports a symbol that collides with one from `Darwin` / `Glibc` (e.g., libevent's `EV_TIMEOUT` collides with kqueue's `EV_TIMEOUT` constant on Apple platforms). Disambiguate at the call site with module qualification: `libevent.EV_TIMEOUT`. The ``Event`` package's own ``EventLoop/schedule(after:_:)`` implementation does exactly this.
 

@@ -8,7 +8,7 @@ Modern Swift bindings for [libevent](https://github.com/libevent/libevent) — a
 📚 [Documentation](https://docs.21.dev/documentation/event/)
 
 > [!CAUTION]
-> Pre-1.0 and no version tag has been published yet. Version-based dependencies will be available after the first release; until then, use `branch: "main"`. See the [Production Considerations](Sources/Event/Event.docc/ProductionConsiderations.md) guide for the concurrency model, resource-ownership rules, and the list of capabilities not yet shipping.
+> This package is pre-1.0 ([SemVer major version zero](https://semver.org/#spec-item-4)). The public API should not be considered stable and may change with any release. Pin a version using `exact:` to avoid unexpected breaking changes. See the [Production Considerations](Sources/Event/Event.docc/ProductionConsiderations.md) guide for the concurrency model, resource-ownership rules, and the list of capabilities not yet shipping.
 
 ## Why swift-event?
 
@@ -27,11 +27,11 @@ Modern Swift bindings for [libevent](https://github.com/libevent/libevent) — a
 Add the package to your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
+.package(url: "https://github.com/21-DOT-DEV/swift-event.git", from: "0.2.1"),
 ```
 
 > [!WARNING]
-> Pin `branch: "main"` until the first version tag ships ([SemVer major version zero](https://semver.org/#spec-item-4) reserves this range as "anything may change at any time"). After 0.1.0, pin with `exact:` instead.
+> Because the package is pre-1.0, prefer pinning with `exact:` instead of `from:` if you want to lock to a specific minor version (e.g. `exact: "0.2.1"`). `from:` will accept any 0.x release ≥ 0.2.1, and 0.x releases may include breaking changes per [SemVer 0.y.z](https://semver.org/#spec-item-4) semantics.
 
 Include `Event` in your target:
 
