@@ -12,15 +12,15 @@ import Glibc
 /// ## Overview
 ///
 /// `Socket` wraps a POSIX file descriptor configured for non-blocking I/O and drives
-/// it through an ``EventLoop`` so that ``read(maxBytes:)`` and ``write(_:)`` resume
+/// it through an ``EventLoop`` so that ``read(maxBytes:timeout:)`` and ``write(_:timeout:)`` resume
 /// their callers only when the kernel indicates data readiness. The async surface
 /// (`async throws` methods) composes naturally with Swift structured concurrency;
 /// the underlying mechanism is libevent callbacks bridging to `CheckedContinuation`s.
 ///
 /// `Socket` covers three roles:
 ///
-/// - **TCP client** — acquired via ``connect(to:port:loop:)`` or
-///   ``connect(to:loop:)``.
+/// - **TCP client** — acquired via ``connect(to:port:loop:timeout:)`` or
+///   ``connect(to:loop:timeout:)``.
 /// - **Accepted server connection** — delivered by ``ServerSocket/accept()`` or the
 ///   ``ServerSocket/connections`` stream.
 /// - **Wrapping an existing descriptor** — not exposed publicly (the initializer is
@@ -62,8 +62,8 @@ public final class Socket: @unchecked Sendable {
 
     /// Creates a socket from an existing file descriptor.
     ///
-    /// Internal — public entry points are ``connect(to:port:loop:)`` /
-    /// ``connect(to:loop:)`` / ``ServerSocket/accept()``. Flips the descriptor to
+    /// Internal — public entry points are ``connect(to:port:loop:timeout:)`` /
+    /// ``connect(to:loop:timeout:)`` / ``ServerSocket/accept()``. Flips the descriptor to
     /// non-blocking mode (`O_NONBLOCK`).
     ///
     /// - Parameters:
@@ -100,36 +100,43 @@ public final class Socket: @unchecked Sendable {
     /// Connects to a remote IPv4 host by numeric address.
     ///
     /// Convenience shorthand that parses `host` via ``SocketAddress/ipv4(_:port:)`` and
-    /// delegates to ``connect(to:loop:)``. For IPv6 endpoints or pre-parsed addresses,
-    /// use ``connect(to:loop:)`` directly.
+    /// delegates to ``connect(to:loop:timeout:)``. For IPv6 endpoints or pre-parsed
+    /// addresses, use ``connect(to:loop:timeout:)`` directly.
     ///
     /// - Parameters:
     ///   - host: Numeric IPv4 address (DNS names are **not** resolved).
     ///   - port: TCP port in host byte order.
     ///   - loop: The event loop to drive. Defaults to ``EventLoop/shared``.
-    /// - Returns: A connected `Socket` ready for ``read(maxBytes:)`` / ``write(_:)``.
+    ///   - timeout: Maximum time to wait for the kernel to complete the handshake.
+    ///     `nil` (the default) waits indefinitely. On expiry the call throws
+    ///     ``SocketError/timeout``.
+    /// - Returns: A connected `Socket` ready for ``read(maxBytes:timeout:)`` / ``write(_:timeout:)``.
     /// - Throws: ``SocketError/invalidAddress(_:)``,
-    ///   ``SocketError/socketCreationFailed(_:)``, or
-    ///   ``SocketError/connectionFailed(_:)``.
-    public static func connect(to host: String, port: UInt16, loop: EventLoop = .shared) async throws -> Socket {
+    ///   ``SocketError/socketCreationFailed(_:)``,
+    ///   ``SocketError/connectionFailed(_:)``, or ``SocketError/timeout``.
+    public static func connect(to host: String, port: UInt16, loop: EventLoop = .shared, timeout: Duration? = nil) async throws -> Socket {
         let address = try SocketAddress.ipv4(host, port: port)
-        return try await connect(to: address, loop: loop)
+        return try await connect(to: address, loop: loop, timeout: timeout)
     }
 
     /// Connects to a remote ``SocketAddress``.
     ///
     /// Creates a fresh non-blocking TCP socket, calls `connect(2)`, and (for
     /// `EINPROGRESS`) registers an `EV_WRITE` event to resume the continuation when
-    /// the kernel completes the handshake.
+    /// the kernel completes the handshake — bounded by `timeout` if provided.
     ///
     /// - Parameters:
     ///   - address: A pre-built endpoint from ``SocketAddress``.
     ///   - loop: The event loop to drive. Defaults to ``EventLoop/shared``.
+    ///   - timeout: Maximum time to wait for handshake completion. `nil` (default)
+    ///     waits indefinitely. On expiry the call throws ``SocketError/timeout``;
+    ///     the partially-connected descriptor is closed before the error is thrown.
     /// - Returns: A connected `Socket`.
     /// - Throws: ``SocketError/socketCreationFailed(_:)`` if `socket(2)` fails;
     ///   ``SocketError/connectionFailed(_:)`` if `connect(2)` fails with anything
-    ///   other than `EINPROGRESS`.
-    public static func connect(to address: SocketAddress, loop: EventLoop = .shared) async throws -> Socket {
+    ///   other than `EINPROGRESS`; ``SocketError/timeout`` if `timeout` elapses
+    ///   before the kernel reports write-readiness.
+    public static func connect(to address: SocketAddress, loop: EventLoop = .shared, timeout: Duration? = nil) async throws -> Socket {
         #if os(Linux)
         let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
 #else
@@ -138,9 +145,9 @@ public final class Socket: @unchecked Sendable {
         guard fd >= 0 else {
             throw SocketError.socketCreationFailed(errno)
         }
-        
+
         let sock = Socket(fd: fd, loop: loop)
-        
+
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             var addr = address.storage
             let result = withUnsafePointer(to: &addr) { ptr in
@@ -152,25 +159,33 @@ public final class Socket: @unchecked Sendable {
 #endif
                 }
             }
-            
+
             if result == 0 {
                 continuation.resume()
                 return
             }
-            
+
             if errno == EINPROGRESS {
-                // Connection in progress, wait for write event
-                let event = event_new(loop.base, fd, Int16(EV_WRITE), { _, _, ctx in
+                let event = event_new(loop.base, fd, Int16(EV_WRITE), { _, events, ctx in
                     let cont = Unmanaged<AnyObject>.fromOpaque(ctx!).takeRetainedValue() as! CheckedContinuationBox<Void, Error>
-                    cont.continuation.resume()
+                    if events & Int16(libevent.EV_TIMEOUT) != 0 {
+                        cont.continuation.resume(throwing: SocketError.timeout)
+                    } else {
+                        cont.continuation.resume()
+                    }
                 }, Unmanaged.passRetained(CheckedContinuationBox(continuation)).toOpaque())
-                
-                event_add(event, nil)
+
+                if var tv = timeout.map(EventLoop.timeval(for:)) {
+                    event_add(event, &tv)
+                } else {
+                    event_add(event, nil)
+                }
+                loop.runOnce()
             } else {
                 continuation.resume(throwing: SocketError.connectionFailed(errno))
             }
         }
-        
+
         return sock
     }
     
@@ -271,23 +286,33 @@ public final class Socket: @unchecked Sendable {
     /// > parameter is preserved for ABI stability so a future release can honor it
     /// > without breaking callers.
     ///
-    /// - Parameter maxBytes: Requested maximum byte count (ignored today; see note).
+    /// - Parameters:
+    ///   - maxBytes: Requested maximum byte count (ignored today; see note).
+    ///   - timeout: Maximum time to wait for readability. `nil` (default) waits
+    ///     indefinitely. On expiry the call throws ``SocketError/timeout`` and the
+    ///     socket remains usable for retry.
     /// - Returns: The data read from the socket.
     /// - Throws: ``SocketError/connectionClosed`` on orderly peer shutdown
-    ///   (`read(2)` returns 0), or ``SocketError/readFailed(_:)`` with the errno
-    ///   payload on transport failure.
-    public func read(maxBytes: Int = 4096) async throws -> Data {
+    ///   (`read(2)` returns 0), ``SocketError/readFailed(_:)`` with the errno
+    ///   payload on transport failure, or ``SocketError/timeout`` if `timeout`
+    ///   elapses before data arrives.
+    public func read(maxBytes: Int = 4096, timeout: Duration? = nil) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
-            let event = event_new(loop.base, fd, Int16(EV_READ), { fd, _, ctx in
+            let event = event_new(loop.base, fd, Int16(EV_READ), { fd, events, ctx in
                 let cont = Unmanaged<AnyObject>.fromOpaque(ctx!).takeRetainedValue() as! CheckedContinuationBox<Data, Error>
-                
+
+                if events & Int16(libevent.EV_TIMEOUT) != 0 {
+                    cont.continuation.resume(throwing: SocketError.timeout)
+                    return
+                }
+
                 var buffer = [UInt8](repeating: 0, count: 4096)
                 #if canImport(Darwin)
                 let bytesRead = Darwin.read(fd, &buffer, buffer.count)
                 #else
                 let bytesRead = Glibc.read(fd, &buffer, buffer.count)
                 #endif
-                
+
                 if bytesRead > 0 {
                     cont.continuation.resume(returning: Data(buffer[0..<bytesRead]))
                 } else if bytesRead == 0 {
@@ -296,12 +321,16 @@ public final class Socket: @unchecked Sendable {
                     cont.continuation.resume(throwing: SocketError.readFailed(errno))
                 }
             }, Unmanaged.passRetained(CheckedContinuationBox(continuation)).toOpaque())
-            
-            event_add(event, nil)
+
+            if var tv = timeout.map(EventLoop.timeval(for:)) {
+                event_add(event, &tv)
+            } else {
+                event_add(event, nil)
+            }
             loop.runOnce()
         }
     }
-    
+
     /// Writes all bytes in `data` to the socket, awaiting write-readiness.
     ///
     /// Registers an `EV_WRITE` event and drives the loop until the descriptor is
@@ -314,14 +343,24 @@ public final class Socket: @unchecked Sendable {
     /// > but callers writing large buffers should chunk explicitly until the
     /// > planned backpressure helper lands. See <doc:ProductionConsiderations>.
     ///
-    /// - Parameter data: The bytes to send.
+    /// - Parameters:
+    ///   - data: The bytes to send.
+    ///   - timeout: Maximum time to wait for write-readiness. `nil` (default) waits
+    ///     indefinitely. On expiry the call throws ``SocketError/timeout`` without
+    ///     having written any bytes.
     /// - Throws: ``SocketError/writeFailed(_:)`` with the errno payload if
-    ///   `write(2)` returns a negative value (e.g. `EPIPE` when the peer closed).
-    public func write(_ data: Data) async throws {
+    ///   `write(2)` returns a negative value (e.g. `EPIPE` when the peer closed),
+    ///   or ``SocketError/timeout`` if `timeout` elapses first.
+    public func write(_ data: Data, timeout: Duration? = nil) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let event = event_new(loop.base, fd, Int16(EV_WRITE), { fd, _, ctx in
+            let event = event_new(loop.base, fd, Int16(EV_WRITE), { fd, events, ctx in
                 let box = Unmanaged<AnyObject>.fromOpaque(ctx!).takeRetainedValue() as! WriteBox
-                
+
+                if events & Int16(libevent.EV_TIMEOUT) != 0 {
+                    box.continuation.resume(throwing: SocketError.timeout)
+                    return
+                }
+
                 let result = box.data.withUnsafeBytes { ptr in
                     #if canImport(Darwin)
                     Darwin.write(fd, ptr.baseAddress!, ptr.count)
@@ -329,19 +368,76 @@ public final class Socket: @unchecked Sendable {
                     Glibc.write(fd, ptr.baseAddress!, ptr.count)
 #endif
                 }
-                
+
                 if result >= 0 {
                     box.continuation.resume()
                 } else {
                     box.continuation.resume(throwing: SocketError.writeFailed(errno))
                 }
             }, Unmanaged.passRetained(WriteBox(data: data, continuation: continuation)).toOpaque())
-            
-            event_add(event, nil)
+
+            if var tv = timeout.map(EventLoop.timeval(for:)) {
+                event_add(event, &tv)
+            } else {
+                event_add(event, nil)
+            }
             loop.runOnce()
         }
     }
     
+    // MARK: - Address Introspection
+
+    /// The local endpoint of this socket, as reported by `getsockname(2)`.
+    ///
+    /// For an accepted server-side socket this is the listener's address; for
+    /// a connected client socket this is the kernel-assigned ephemeral local
+    /// endpoint. Returns `nil` if the syscall fails (e.g. the descriptor is
+    /// closed).
+    public var localAddress: SocketAddress? {
+        var storage = sockaddr_storage()
+        var length = socklen_t(MemoryLayout<sockaddr_storage>.size)
+        let result = withUnsafeMutablePointer(to: &storage) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                getsockname(fd, sa, &length)
+            }
+        }
+        guard result == 0 else { return nil }
+        return SocketAddress.from(storage: storage, length: length)
+    }
+
+    /// The local TCP port of this socket (host byte order).
+    ///
+    /// Convenience over ``localAddress``. Returns `0` if the address is not
+    /// available or the family is not `AF_INET` / `AF_INET6`.
+    public var localPort: UInt16 {
+        localAddress?.port ?? 0
+    }
+
+    /// The peer's endpoint, as reported by `getpeername(2)`.
+    ///
+    /// On an accepted server-side socket this is the connecting client; on a
+    /// connected client socket this is the server. Returns `nil` if the
+    /// syscall fails (e.g. the socket is not connected, or has been closed).
+    public var remoteAddress: SocketAddress? {
+        var storage = sockaddr_storage()
+        var length = socklen_t(MemoryLayout<sockaddr_storage>.size)
+        let result = withUnsafeMutablePointer(to: &storage) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                getpeername(fd, sa, &length)
+            }
+        }
+        guard result == 0 else { return nil }
+        return SocketAddress.from(storage: storage, length: length)
+    }
+
+    /// The peer's TCP port (host byte order).
+    ///
+    /// Convenience over ``remoteAddress``. Returns `0` if the peer address is
+    /// not available.
+    public var remotePort: UInt16 {
+        remoteAddress?.port ?? 0
+    }
+
     /// Closes the socket's descriptor immediately.
     ///
     /// `async` for API symmetry with other methods; the underlying `close(2)` is
