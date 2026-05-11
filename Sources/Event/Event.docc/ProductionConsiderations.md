@@ -12,13 +12,13 @@ Pre-1.0 status, the concurrency model, resource-ownership rules, and the list of
 
 ### Pre-1.0 SemVer
 
-swift-event follows [SemVer major version zero](https://semver.org/#spec-item-4): the `0.y.z` range reserves the right to break API in any release. No version tag has been cut yet; consumers pin to the `main` branch. When 0.1.0 lands, pin with `exact:`:
+swift-event follows [SemVer major version zero](https://semver.org/#spec-item-4): the `0.y.z` range reserves the right to break API in any release. Pin with `exact:` so a minor-version bump in this package never silently breaks your build:
 
 ```swift
-.package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.1.0"),
+.package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.2.1"),
 ```
 
-`branch: "main"` pinning is transitional and will be replaced with `exact:` pins as soon as the first tag ships.
+If you want patch-level updates without manually re-pinning, use `from:` against the current minor — but be aware that `from: "0.2.1"` will accept any 0.y release ≥ 0.2.1, including breaking changes per `0.y.z` semantics.
 
 ### Concurrency Model
 

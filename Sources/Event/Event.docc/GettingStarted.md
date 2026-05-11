@@ -12,11 +12,11 @@ Each section below solves one concrete task. Every executable example comes from
 
 ### Adding Event to Your Project
 
-Add `swift-event` as a Swift Package Manager dependency. Because the package is pre-1.0 and no version tag has been published yet, pin to the `main` branch:
+Add `swift-event` as a Swift Package Manager dependency. Pin with `exact:` because the package is pre-1.0 and any `0.y.z` release may include breaking changes ([SemVer 0.y.z](https://semver.org/#spec-item-4)):
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
+.package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.2.1"),
 ```
 
 ```swift
@@ -132,8 +132,8 @@ Other Swift packages can consume `libevent` from this package directly without g
 ```swift
 // From swift-tor's Package.swift
 dependencies: [
-    .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", branch: "main"),
-    .package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
+    .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.5"),
+    .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.2.1"),
 ],
 targets: [
     .target(

@@ -43,8 +43,8 @@ Reach for the raw C bindings when:
 ```swift
 // From swift-tor's Package.swift
 dependencies: [
-    .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", branch: "main"),
-    .package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
+    .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.5"),
+    .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.2.1"),
 ],
 targets: [
     .target(
@@ -65,7 +65,7 @@ This is the intended consumption pattern for packages that need libevent as a ru
 
 The package-level "pre-1.0" status applies differently to each product:
 
-- **`Event` (Swift API)**: Pre-1.0 ([SemVer `0.y.z`](https://semver.org/#spec-item-4)). The public surface — type names, function signatures, the set of ``SocketError`` cases, the concurrency posture — may change across `0.y.z` releases. No version tag has been cut yet; consumers pin to `branch: "main"`. Pinning `exact:` will replace branch pins as soon as 0.1.0 ships.
+- **`Event` (Swift API)**: Pre-1.0 ([SemVer `0.y.z`](https://semver.org/#spec-item-4)). The public surface — type names, function signatures, the set of ``SocketError`` cases, the concurrency posture — may change across `0.y.z` releases. Pin with `exact:` to lock to a specific minor; `from:` will accept any subsequent `0.y` release and may surface breaking changes.
 - **`libevent` (C bindings)**: Stable *relative to upstream libevent 2.1.12's own C ABI*. If upstream libevent 2.2 renames or removes a function, this package will pass that change through. If upstream keeps a function stable, so does this package. The version pin is in `subtree.yaml` (currently tracking the `release-2.1.12-stable` branch); updating it follows the extraction recipe in [`Vendor/AGENTS.md`](https://github.com/21-DOT-DEV/swift-event/blob/main/Vendor/AGENTS.md).
 
 Consumers of `libevent` (like `swift-tor`) inherit the libevent 2.1.12 stability contract directly. Consumers of `Event` (like an application using the Swift API) inherit this package's own pre-1.0 policy on top.

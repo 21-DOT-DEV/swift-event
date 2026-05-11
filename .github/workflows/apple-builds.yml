@@ -18,6 +18,11 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build and test
         run: swift test
+      - name: Build LinuxConsumerProbe (external-consumer regression coverage)
+        # Mirrors the Dockerfile step so the modulemap is exercised against
+        # macOS Clang's C++ interop path too — Apple and Linux Clang
+        # disagree on subtle module-loading rules and both must stay green.
+        run: cd Examples/LinuxConsumerProbe && swift build
       - name: Validate DocC catalog
         run: swift package generate-documentation --target Event --analyze --warnings-as-errors
 
