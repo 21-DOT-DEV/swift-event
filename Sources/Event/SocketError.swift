@@ -25,7 +25,7 @@ import Foundation
 ///   ``SocketAddress/ipv6(_:port:)`` rejected the input string. The payload is the
 ///   original host string.
 /// - ``SocketError/socketCreationFailed(_:)`` — `socket(2)` failed inside
-///   ``Socket/connect(to:port:loop:)`` or ``Socket/listen(port:backlog:loop:)``.
+///   ``Socket/connect(to:port:loop:timeout:)`` or ``Socket/listen(port:backlog:loop:)``.
 /// - ``SocketError/connectionFailed(_:)`` — `connect(2)` returned a non-`EINPROGRESS`
 ///   error, or the socket's pending-write event reported failure.
 /// - ``SocketError/bindFailed(_:)`` / ``SocketError/listenFailed(_:)`` — server-socket
@@ -35,7 +35,9 @@ import Foundation
 /// - ``SocketError/readFailed(_:)`` / ``SocketError/writeFailed(_:)`` — the underlying
 ///   `read(2)` / `write(2)` returned a negative value.
 /// - ``SocketError/connectionClosed`` — `read(2)` returned 0 (orderly shutdown by peer).
-/// - ``SocketError/timeout`` — reserved for future timeout-based APIs; not emitted today.
+/// - ``SocketError/timeout`` — a `timeout:` parameter on
+///   ``Socket/connect(to:loop:timeout:)``, ``Socket/read(maxBytes:timeout:)``,
+///   or ``Socket/write(_:timeout:)`` elapsed before the operation completed.
 ///
 /// - SeeAlso: <doc:ProductionConsiderations> for the current caveat list, including
 ///   behaviors not yet wrapped (UDP, TLS, timeouts, cancellation).
@@ -93,13 +95,17 @@ public enum SocketError: Error, Sendable {
 
     /// The peer performed an orderly shutdown of its write side (`read(2)` returned 0).
     ///
-    /// Surfaced from ``Socket/read(maxBytes:)`` to distinguish EOF from a transport error.
+    /// Surfaced from ``Socket/read(maxBytes:timeout:)`` to distinguish EOF from a transport error.
     case connectionClosed
 
-    /// A timeout fired on an operation that supports one.
+    /// A `timeout:` parameter elapsed before the operation completed.
     ///
-    /// Reserved for future APIs; not currently emitted by any public method in this
-    /// release. Included in the enum so that the ABI is stable when timeouts land.
+    /// Emitted by ``Socket/connect(to:loop:timeout:)``,
+    /// ``Socket/read(maxBytes:timeout:)``, and ``Socket/write(_:timeout:)`` when their
+    /// optional `timeout` argument is non-`nil` and the kernel did not satisfy the
+    /// readiness condition before the deadline. The socket itself remains usable for
+    /// retry; partial writes are not consumed (the `write(2)` syscall is never issued
+    /// when the timeout fires before write-readiness).
     case timeout
 }
 

@@ -80,8 +80,8 @@ public final class ServerSocket: @unchecked Sendable {
     /// Registers a one-shot `EV_READ` event on the listening descriptor, drives the
     /// event loop via ``EventLoop/runOnce()``, then calls `accept(2)` in the ready
     /// callback. The returned ``Socket`` owns its descriptor and is configured for
-    /// non-blocking I/O; read/write it via the normal ``Socket/read(maxBytes:)`` /
-    /// ``Socket/write(_:)`` APIs.
+    /// non-blocking I/O; read/write it via the normal ``Socket/read(maxBytes:timeout:)`` /
+    /// ``Socket/write(_:timeout:)`` APIs.
     ///
     /// - Returns: A connected ``Socket`` for the newly-accepted client.
     /// - Throws: ``SocketError/acceptFailed(_:)`` if `accept(2)` returns a negative
@@ -161,6 +161,34 @@ public final class ServerSocket: @unchecked Sendable {
         #else
         Glibc.close(fd)
         #endif
+    }
+
+    // MARK: - Address Introspection
+
+    /// The local endpoint this listener is bound to, as reported by `getsockname(2)`.
+    ///
+    /// Useful for `port: 0` binds where the kernel assigns an ephemeral port —
+    /// read this back to learn which port clients should connect to. Returns
+    /// `nil` if the descriptor is closed or the syscall fails for any reason.
+    public var localAddress: SocketAddress? {
+        var storage = sockaddr_storage()
+        var length = socklen_t(MemoryLayout<sockaddr_storage>.size)
+        let result = withUnsafeMutablePointer(to: &storage) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                getsockname(fd, sa, &length)
+            }
+        }
+        guard result == 0 else { return nil }
+        return SocketAddress.from(storage: storage, length: length)
+    }
+
+    /// The local TCP port this listener is bound to (host byte order).
+    ///
+    /// Convenience over ``localAddress``. Returns `0` if the address is not
+    /// available (e.g. the socket is closed) or the address family is not
+    /// `AF_INET` / `AF_INET6`.
+    public var localPort: UInt16 {
+        localAddress?.port ?? 0
     }
 }
 

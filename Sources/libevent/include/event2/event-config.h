@@ -51,17 +51,41 @@
 /* #undef EVENT__HAVE_ACCEPT4 */
 #endif
 
-/* Define to 1 if you have the `arc4random' function. */
+/* Define to 1 if you have the `arc4random' function.
+ *
+ * glibc 2.36 (released Aug 2022, Ubuntu 22.10+) added arc4random and
+ * arc4random_buf to <stdlib.h>. The bundled `arc4random.c` defines its
+ * own `static arc4random_buf`, so on glibc 2.36+ including the bundled
+ * file (which `evutil_rand.c` does via `#include "./arc4random.c"`)
+ * triggers a "static declaration follows non-static declaration"
+ * collision against the libc prototype.
+ *
+ * On glibc 2.36+: use the system implementation, skip the bundled file.
+ * On older glibc (no arc4random in libc): fall back to the bundled
+ * getrandom()-syscall implementation.
+ *
+ * <features.h> is included explicitly because this file is consumed
+ * before any system header (e.g. by evutil_rand.c's first line), so
+ * __GLIBC_*__ would otherwise be undefined when the check runs. */
 #if defined(__linux__)
-/* Linux: use bundled arc4random.c with getrandom() syscall */
-#undef EVENT__HAVE_ARC4RANDOM
+#  include <features.h>
+#  if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 36))
+#    define EVENT__HAVE_ARC4RANDOM 1
+#  else
+/* #undef EVENT__HAVE_ARC4RANDOM */
+#  endif
 #else
 #define EVENT__HAVE_ARC4RANDOM 1
 #endif
 
 /* Define to 1 if you have the `arc4random_buf' function. */
 #if defined(__linux__)
-#undef EVENT__HAVE_ARC4RANDOM_BUF
+/* <features.h> was included above. */
+#  if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 36))
+#    define EVENT__HAVE_ARC4RANDOM_BUF 1
+#  else
+/* #undef EVENT__HAVE_ARC4RANDOM_BUF */
+#  endif
 #else
 #define EVENT__HAVE_ARC4RANDOM_BUF 1
 #endif

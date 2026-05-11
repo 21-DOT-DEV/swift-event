@@ -1,5 +1,11 @@
 import libevent
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
 /// A libevent-backed event loop owning an `event_base` for async I/O dispatch.
 ///
 /// ## Overview
@@ -133,5 +139,192 @@ public final class EventLoop: @unchecked Sendable {
             return "unknown"
         }
         return String(cString: method)
+    }
+
+    // MARK: - Timers
+
+    /// Schedules `work` to run once after `duration` elapses, then returns immediately.
+    ///
+    /// Wraps libevent's `event_base_once(3)` with `EV_TIMEOUT`. The closure runs on
+    /// whichever task next drives the loop (via ``run()`` or any ``Socket`` /
+    /// ``ServerSocket`` operation that calls ``runOnce()`` internally). If nothing
+    /// drives the loop before the deadline, the callback is queued but does not fire
+    /// until something does.
+    ///
+    /// - Parameters:
+    ///   - duration: How long to wait. Negative or zero durations fire on the next
+    ///     loop iteration.
+    ///   - work: Closure to invoke. Runs in the loop's callback context.
+    /// - SeeAlso: ``sleep(for:)`` for an `async` shape that suspends the calling task.
+    public func schedule(after duration: Duration, _ work: @Sendable @escaping () -> Void) {
+        let box = TimerBox(work: work)
+        let opaque = Unmanaged.passRetained(box).toOpaque()
+        var tv = EventLoop.timeval(for: duration)
+
+        let result = event_base_once(base, -1, Int16(libevent.EV_TIMEOUT), { _, _, ctx in
+            let box = Unmanaged<TimerBox>.fromOpaque(ctx!).takeRetainedValue()
+            box.work()
+        }, opaque, &tv)
+
+        if result != 0 {
+            Unmanaged<TimerBox>.fromOpaque(opaque).release()
+        }
+    }
+
+    /// Suspends the current task for `duration`, driven by this event loop.
+    ///
+    /// Unlike `Task.sleep(for:)`, which goes through the global Swift concurrency
+    /// clock, this routes the wait through libevent's timer wheel — useful when you
+    /// want sleeps to share scheduling with the same multiplexer that's driving your
+    /// I/O. Internally registers a one-shot timer via ``schedule(after:_:)`` and
+    /// drives the loop until it fires.
+    ///
+    /// - Parameter duration: How long to suspend. Negative or zero durations return
+    ///   on the next loop iteration.
+    public func sleep(for duration: Duration) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            schedule(after: duration) {
+                continuation.resume()
+            }
+            runOnce()
+        }
+    }
+
+    // MARK: - Signal Events
+
+    /// Yields the signal number each time one of `signals` fires on this loop.
+    ///
+    /// Backed by libevent's `evsignal_*` machinery. libevent installs its own
+    /// signal-safe handler internally (the C-side handler only notes the
+    /// signal and lets the loop dispatch the callback in normal context), so
+    /// the closure body runs in regular Swift Concurrency context — none of
+    /// the async-signal-safety restrictions of raw `signal(2)` handlers
+    /// apply. This mirrors the safety story of Apple's
+    /// [`DispatchSource.makeSignalSource(_:queue:)`][ds], which also defers
+    /// callbacks off the signal handler.
+    ///
+    /// [ds]: https://developer.apple.com/documentation/dispatch/dispatchsource/1781941-makesignalsource
+    ///
+    /// The stream is unbuffered by default (matches `AsyncStream`'s no-arg
+    /// constructor): values are delivered to the iterator if it is currently
+    /// awaiting, or buffered until it does. Stream termination —
+    /// `for await … break`, the iterating task being cancelled, or the
+    /// returned stream being dropped — calls `event_del(3)` on each
+    /// registered signal event, restoring the prior signal disposition.
+    ///
+    /// > Important: libevent permits at most one `event_base` to claim a given
+    /// > signal at a time. If two ``EventLoop`` instances in the same process
+    /// > call `signalStream` for the same signal number, the second
+    /// > registration's behavior is undefined. In practice you should
+    /// > register process-global signals on a single event loop —
+    /// > ``shared`` is the typical choice.
+    ///
+    /// Composes cleanly with
+    /// [`swift-service-lifecycle`](https://github.com/swift-server/swift-service-lifecycle):
+    /// a service's `run()` body can iterate this stream and call
+    /// `gracefulShutdown()` on the first value, breaking out of the loop to
+    /// trigger automatic teardown.
+    ///
+    /// - Parameter signals: One or more signal numbers to observe (e.g.
+    ///   `SIGTERM`, `SIGINT`, `SIGHUP`, `SIGUSR1`).
+    /// - Returns: An `AsyncStream<Int32>` yielding the signal number each time
+    ///   any of the requested signals fires.
+    public func signalStream(_ signals: Int32...) -> AsyncStream<Int32> {
+        AsyncStream { continuation in
+            let registration = SignalRegistration(loop: self)
+            for signum in signals {
+                let box = SignalBox(signum: signum, continuation: continuation)
+                let opaque = Unmanaged.passRetained(box).toOpaque()
+                let ev = event_new(base, signum, Int16(EV_SIGNAL | EV_PERSIST), { _, _, ctx in
+                    let box = Unmanaged<SignalBox>.fromOpaque(ctx!).takeUnretainedValue()
+                    box.continuation.yield(box.signum)
+                }, opaque)
+                if let ev {
+                    event_add(ev, nil)
+                    registration.events.append((event: ev, retained: opaque))
+                } else {
+                    Unmanaged<SignalBox>.fromOpaque(opaque).release()
+                }
+            }
+            continuation.onTermination = { _ in
+                // Runs on stream cancellation / drop — tear down each event.
+                registration.tearDown()
+            }
+        }
+    }
+
+    /// Converts a `Duration` to a POSIX `timeval` suitable for libevent.
+    ///
+    /// Truncates sub-microsecond precision (timeval has no nanosecond field).
+    /// Negative durations clamp to zero so libevent fires immediately rather than
+    /// rejecting the timeval.
+    static func timeval(for duration: Duration) -> timeval {
+        let comps = duration.components
+        let seconds = max(comps.seconds, 0)
+        let microseconds = comps.seconds < 0 ? 0 : comps.attoseconds / 1_000_000_000_000
+        #if canImport(Darwin)
+        return Darwin.timeval(tv_sec: Int(seconds), tv_usec: Int32(microseconds))
+        #else
+        return Glibc.timeval(tv_sec: Int(seconds), tv_usec: Int(microseconds))
+        #endif
+    }
+}
+
+/// Retained box for a fire-and-forget timer closure.
+///
+/// `@unchecked Sendable` because the stored closure is consumed exactly once by a
+/// single libevent callback invocation; Unmanaged retain/release bookends its lifetime.
+private final class TimerBox: @unchecked Sendable {
+    let work: @Sendable () -> Void
+
+    init(work: @Sendable @escaping () -> Void) {
+        self.work = work
+    }
+}
+
+/// Retained context for a persistent libevent signal callback.
+///
+/// `@unchecked Sendable` because mutation is bounded to a single callback
+/// invocation per fire and the stored continuation is itself `Sendable`.
+private final class SignalBox: @unchecked Sendable {
+    let signum: Int32
+    let continuation: AsyncStream<Int32>.Continuation
+
+    init(signum: Int32, continuation: AsyncStream<Int32>.Continuation) {
+        self.signum = signum
+        self.continuation = continuation
+    }
+}
+
+/// Owns the libevent signal events registered for a single
+/// ``EventLoop/signalStream(_:)`` invocation. Holds a strong reference to
+/// the loop so the underlying `event_base` outlives the stream, and tears
+/// down every registered event on stream termination.
+///
+/// `@unchecked Sendable` because all mutation happens either at construction
+/// (single owner) or inside `tearDown()` (single call from the stream
+/// continuation's `onTermination` hook).
+private final class SignalRegistration: @unchecked Sendable {
+    let loop: EventLoop
+    var events: [(event: UnsafeMutablePointer<event>, retained: UnsafeMutableRawPointer)] = []
+    private var torndown = false
+
+    init(loop: EventLoop) {
+        self.loop = loop
+    }
+
+    func tearDown() {
+        guard !torndown else { return }
+        torndown = true
+        for entry in events {
+            event_del(entry.event)
+            event_free(entry.event)
+            Unmanaged<SignalBox>.fromOpaque(entry.retained).release()
+        }
+        events.removeAll()
+    }
+
+    deinit {
+        tearDown()
     }
 }

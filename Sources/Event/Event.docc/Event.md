@@ -12,10 +12,14 @@ Async TCP sockets and event-loop primitives for Swift on top of `kqueue` (Apple 
 
 Direct-use capabilities shipping today:
 
-- **Event-loop control** — create a loop, drive it per-operation or long-lived, inspect the backend. See ``EventLoop``.
-- **Async TCP client** — `async throws` `connect` / `read` / `write` / `close`. See ``Socket``.
+- **Event-loop control** — create a loop, drive it per-operation or long-lived, inspect the backend, schedule timers. See ``EventLoop``.
+- **Async TCP client** — `async throws` `connect` / `read` / `write` / `close`, all with optional `timeout:` parameters. See ``Socket``.
 - **Async TCP server** — `bind` / `listen` / `accept` and an `AsyncThrowingStream` of incoming connections. See ``ServerSocket``.
 - **Address construction** — numeric IPv4 / IPv6 / wildcard factories over `sockaddr_storage`. See ``SocketAddress``.
+- **Timer scheduling** — fire-and-forget ``EventLoop/schedule(after:_:)`` and async ``EventLoop/sleep(for:)`` driven by libevent's timer wheel.
+- **I/O timeouts** — every async I/O entry point accepts `timeout: Duration?` and surfaces ``SocketError/timeout`` on expiry.
+- **Signal events** — ``EventLoop/signalStream(_:)`` returns an `AsyncStream<Int32>` for `SIGTERM` / `SIGINT` / etc., composing with `swift-service-lifecycle` graceful-shutdown patterns.
+- **Address introspection** — ``ServerSocket/localPort`` / ``ServerSocket/localAddress`` for ephemeral-port binds, ``Socket/remotePort`` / ``Socket/remoteAddress`` for connected-peer logging.
 
 ```swift
 import Event
@@ -28,7 +32,7 @@ print(loop.backendMethod)
 
 ### Foundation Runtime for Swift Network Stacks
 
-Beyond its direct API, this package ships the raw `libevent` C binding product that other Swift packages link against when they need libevent primitives this Swift API hasn't wrapped yet (timer events via `evtimer_*`, signal events via `evsignal_*`, custom bufferevents, DNS resolution via `evdns_*`). The concrete example is [`swift-tor`](https://github.com/21-DOT-DEV/swift-tor), whose `libtor` target depends on `libevent` (from this package) alongside `libcrypto` / `libssl` (from [`swift-openssl`](https://github.com/21-DOT-DEV/swift-openssl)) to build a Swift-native Tor daemon. See <doc:ChoosingLibeventVsEvent> for product-selection guidance.
+Beyond its direct API, this package ships the raw `libevent` C binding product that other Swift packages link against when they need libevent primitives this Swift API hasn't wrapped yet (custom bufferevents, DNS resolution via `evdns_*`). The concrete example is [`swift-tor`](https://github.com/21-DOT-DEV/swift-tor), whose `libtor` target depends on `libevent` (from this package) alongside `libcrypto` / `libssl` (from [`swift-openssl`](https://github.com/21-DOT-DEV/swift-openssl)) to build a Swift-native Tor daemon. See <doc:ChoosingLibeventVsEvent> for product-selection guidance and <doc:EmbeddingCLibrariesInSwiftPM> for the SwiftPM module-map and product-re-export pattern.
 
 API positioning: `Event` is a thin, libevent-direct, async/await wrapper. It is not a replacement for [SwiftNIO](https://github.com/apple/swift-nio) — if you need NIO's channel pipelines, back-pressure protocol handlers, or HTTP/2 / WebSocket / TLS off-the-shelf, reach for NIO. Reach for `Event` when you want minimal abstraction over the platform multiplexer, a small dependency surface, or tight interop with C code that already speaks libevent.
 
@@ -41,7 +45,12 @@ New to `Event`? Start with <doc:GettingStarted> for a task-oriented walkthrough 
 ### Guides
 
 - <doc:GettingStarted>
+- <doc:AsyncTCPServerInSwift>
+- <doc:TCPClientForIOSWithSwift>
+- <doc:PartialReadsAndMessageFraming>
 - <doc:ChoosingLibeventVsEvent>
+- <doc:EmbeddingCLibrariesInSwiftPM>
+- <doc:SwiftEventVsSwiftNIOVsHummingbirdVsNetworkFramework>
 
 ### Concepts
 

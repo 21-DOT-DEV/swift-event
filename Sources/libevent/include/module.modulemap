@@ -1,0 +1,13 @@
+module libevent {
+    // `requires !cplusplus` makes Clang skip module compilation under C++
+    // consumers (libevent's headers rely on caller-defined `EVENT__*`
+    // macros and don't parse cleanly as an isolated module in C++ mode).
+    // Those consumers fall back to textual `#include` via the `-I` paths
+    // SwiftPM puts on the search path. Swift and C consumers parse the
+    // directory umbrella below and get the full libevent API, including
+    // the `event2/*_struct.h` family that isn't reachable from the
+    // public `event2/event.h` umbrella header alone.
+    requires !cplusplus
+    umbrella "."
+    export *
+}

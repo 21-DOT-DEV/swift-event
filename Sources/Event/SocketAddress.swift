@@ -40,7 +40,7 @@ import Foundation
 /// print(loopback4.port)  // 8080
 /// ```
 ///
-/// - SeeAlso: ``Socket/connect(to:loop:)``, ``Socket/listen(on:backlog:loop:)``,
+/// - SeeAlso: ``Socket/connect(to:loop:timeout:)``, ``Socket/listen(on:backlog:loop:)``,
 ///   ``SocketError/invalidAddress(_:)``.
 public struct SocketAddress: Sendable {
     /// The underlying `sockaddr_storage` container.
@@ -55,6 +55,28 @@ public struct SocketAddress: Sendable {
     /// `sockaddr_storage` — a smaller family-specific size so the kernel reads only the
     /// valid bytes.
     var length: socklen_t
+
+    /// Wraps a kernel-supplied `sockaddr_storage` as a `SocketAddress`.
+    ///
+    /// Used by ``ServerSocket/localAddress``, ``Socket/localAddress``, and
+    /// ``Socket/remoteAddress`` to convert the result of `getsockname(2)` /
+    /// `getpeername(2)` into the value type the rest of the API speaks.
+    /// Returns `nil` for any address family other than `AF_INET` or `AF_INET6`
+    /// — the only families this package supports.
+    ///
+    /// Exposed as a `static` factory rather than a failable initializer so
+    /// the struct's other initializers (``ipv4(_:port:)``, ``ipv6(_:port:)``,
+    /// ``anyIPv4(port:)``) keep using the synthesised memberwise constructor.
+    ///
+    /// - Parameters:
+    ///   - storage: A `sockaddr_storage` already populated by the kernel.
+    ///   - length: The `socklen_t` the kernel reported via `getsockname(2)` /
+    ///     `getpeername(2)`. Stored as-is; not validated against `ss_family`.
+    public static func from(storage: sockaddr_storage, length: socklen_t) -> SocketAddress? {
+        let family = Int32(storage.ss_family)
+        guard family == AF_INET || family == AF_INET6 else { return nil }
+        return SocketAddress(storage: storage, length: length)
+    }
 
     /// Creates an IPv4 socket address from a dotted-quad string.
     ///

@@ -38,7 +38,7 @@ Most applications will use ``EventLoop/shared``, a process-wide singleton, and n
 
 ### Writing an Async TCP Client
 
-``Socket`` exposes an async TCP client via two factory methods: ``Socket/connect(to:port:loop:)`` for numeric IPv4 endpoints and ``Socket/connect(to:loop:)`` for pre-built ``SocketAddress`` values (including IPv6). The returned `Socket` owns its file descriptor and is ready for ``Socket/read(maxBytes:)`` / ``Socket/write(_:)`` without additional setup.
+``Socket`` exposes an async TCP client via two factory methods: ``Socket/connect(to:port:loop:timeout:)`` for numeric IPv4 endpoints and ``Socket/connect(to:loop:timeout:)`` for pre-built ``SocketAddress`` values (including IPv6). The returned `Socket` owns its file descriptor and is ready for ``Socket/read(maxBytes:timeout:)`` / ``Socket/write(_:timeout:)`` without additional setup.
 
 @Snippet(path: "swift-event/Snippets/EchoClient")
 
@@ -51,6 +51,54 @@ The server side exposes a ``ServerSocket`` produced by ``Socket/listen(port:back
 @Snippet(path: "swift-event/Snippets/EchoServer")
 
 The `connections` stream is the idiomatic entry point for long-running servers — it composes with Swift structured concurrency so you can dispatch each accepted client onto a child task. Cancellation of the outer task terminates the `for try await` loop but does not currently unregister the outstanding libevent accept callback; call ``ServerSocket/close()`` or drop the last strong reference to the `ServerSocket` to fully tear the listener down. See <doc:ProductionConsiderations>.
+
+### Detecting Socket Close and Errors
+
+In an `async`/`await` socket API there is no "register a close handler" step — the close event arrives through the same `try`/`catch` you already use for I/O. ``Socket/read(maxBytes:timeout:)`` throws ``SocketError/connectionClosed`` when the peer performs an orderly shutdown (`read(2)` returns 0), and ``SocketError/readFailed(_:)`` (with the raw `errno` payload) when the transport breaks. ``Socket/write(_:timeout:)`` throws ``SocketError/writeFailed(_:)`` for write-side failures (e.g. `EPIPE`). Both throw ``SocketError/timeout`` when their optional `timeout:` parameter elapses.
+
+The idiomatic shape for "consume bytes until the peer closes" is a single `do { while true { … } } catch` — no observer, no callback registration, and no separate close hook to wire up:
+
+```swift
+do {
+    while true {
+        let chunk = try await socket.read()
+        process(chunk)
+    }
+} catch SocketError.connectionClosed {
+    // Peer closed cleanly — terminate the read loop.
+} catch SocketError.timeout {
+    // Optional timeout elapsed — decide whether to retry or give up.
+} catch SocketError.readFailed(let errno) {
+    // Transport-level failure (e.g. ECONNRESET). The errno payload is from
+    // the failing read(2) syscall; pass through strerror(_:) for a message.
+    log("read failed: \(String(cString: strerror(errno)))")
+} catch {
+    // Cancellation or unrelated thrown error.
+    throw error
+}
+```
+
+If you need to bound how long a single read waits, pass `timeout:` directly:
+
+```swift
+let chunk = try await socket.read(timeout: .seconds(5))
+```
+
+The same pattern applies to ``Socket/write(_:timeout:)`` and ``Socket/connect(to:loop:timeout:)`` — every async I/O call in `Event` accepts an optional `timeout:` and surfaces ``SocketError/timeout`` on expiry. The socket itself remains usable for retry; the partial-write case is documented in <doc:ProductionConsiderations>.
+
+### Scheduling Timers on the Event Loop
+
+When you need a delay or a one-shot future task that shares scheduling with the same multiplexer driving your I/O, use ``EventLoop/sleep(for:)`` or ``EventLoop/schedule(after:_:)`` instead of `Task.sleep(for:)`. The former routes through libevent's timer wheel (so wake-ups happen as part of the same event-dispatch pass that delivers your read/write callbacks), while the latter is a fire-and-forget callback shape useful for background work that must not block the calling task.
+
+```swift
+// Async sleep, driven by the loop:
+await loop.sleep(for: .milliseconds(250))
+
+// Fire-and-forget timer:
+loop.schedule(after: .seconds(1)) {
+    print("one second later")
+}
+```
 
 ### Constructing Socket Addresses
 
