@@ -219,6 +219,18 @@ public final class EventLoop: @unchecked Sendable {
     /// > register process-global signals on a single event loop —
     /// > ``shared`` is the typical choice.
     ///
+    /// > Tip: When unit-testing code that consumes a signal stream, fire
+    /// > signals with `kill(getpid(), SIGUSR1)` rather than `raise(SIGUSR1)`.
+    /// > `raise()` is thread-directed (equivalent to
+    /// > `pthread_kill(pthread_self(), …)`) and only delivers to the calling
+    /// > thread; if the loop is being driven on a different thread — the
+    /// > typical test pattern — libevent's handler never sees the signal and
+    /// > the test hangs. `kill(getpid(), …)` is process-directed so any
+    /// > unblocked thread, including the loop's driver, can receive it.
+    /// > Production users whose signals come from external processes
+    /// > (`kill -TERM <pid>`, `Ctrl-C` from a shell) never hit this — those
+    /// > are already process-directed.
+    ///
     /// Composes cleanly with
     /// [`swift-service-lifecycle`](https://github.com/swift-server/swift-service-lifecycle):
     /// a service's `run()` body can iterate this stream and call

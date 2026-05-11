@@ -159,38 +159,50 @@ struct EventTests {
     @Test("EventLoop.signalStream yields a self-sent SIGUSR1")
     func eventLoopSignalStream() async throws {
         let loop = EventLoop()
-        // Ignore default disposition first — libevent will install its own
-        // handler on event_add, but on Apple platforms SIGUSR1's default is
-        // process termination, so a race between Task setup and our raise(2)
-        // could otherwise kill the test runner.
+        // Default SIGUSR1 disposition is process termination; flip to SIG_IGN
+        // before signalStream installs libevent's handler, so a race during
+        // setup (signal arriving before the libevent handler is in place)
+        // can't kill the test runner.
         signal(SIGUSR1, SIG_IGN)
         defer { signal(SIGUSR1, SIG_DFL) }
 
         let stream = loop.signalStream(SIGUSR1)
+
+        // Drive the loop on a detached task so the test thread is free to
+        // raise the signal and await the iterator. event_base_loop blocks in
+        // epoll_wait/kevent until something fires; without a separate thread
+        // doing that work, no Task that needs to fire the signal could ever
+        // get CPU under cooperative concurrency on Linux. (Previous attempt
+        // interleaved runOnce() and iterator.next() on the same task and
+        // deadlocked on Linux for this reason.)
+        //
+        // We deliberately do NOT synchronize teardown — event_base_loopbreak
+        // only wakes a parked event_base_loop when evthread_use_pthreads has
+        // been called, which this package omits by design. The driver's
+        // strong reference to `loop` keeps the event_base alive past test
+        // return; the OS reclaims resources at process exit. Acceptable for
+        // a one-off test asserting signal delivery; not a pattern for
+        // production code.
+        Task.detached { loop.run() }
+
+        // Yield + sleep so the driver task is scheduled and libevent's
+        // handler is installed before we raise. 50 ms is well above what's
+        // needed in practice but keeps the test stable on slow CI runners.
+        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        // Use kill(getpid(), …) rather than raise(): raise() is
+        // thread-directed (equivalent to pthread_kill(pthread_self())) and
+        // delivers only to the calling thread. On Linux that's the test
+        // thread, which may have SIGUSR1 in a state that doesn't dispatch
+        // — the libevent driver thread never sees it and the test hangs.
+        // kill(getpid(), …) is process-directed and any thread without the
+        // signal blocked can pick it up.
+        kill(getpid(), SIGUSR1)
+
         var iterator = stream.makeAsyncIterator()
-
-        // Drive the loop while waiting for the signal: the iterator's `next()`
-        // suspends until the stream yields, but the yield happens inside a
-        // libevent callback driven by `runOnce()`. Spawn a Task to send the
-        // signal once the loop is running.
-        Task {
-            // Tiny delay to let the iterator subscribe before we raise.
-            try? await Task.sleep(for: .milliseconds(20))
-            raise(SIGUSR1)
-        }
-
-        // Drive the loop until the signal fires (capped to avoid hanging tests).
-        let deadline = ContinuousClock.now + .seconds(2)
-        while ContinuousClock.now < deadline {
-            loop.runOnce()
-            // After runOnce returns, the SignalBox callback has yielded into
-            // the stream. Try to consume the value with a short timeout.
-            if let received = await iterator.next() {
-                #expect(received == SIGUSR1)
-                return
-            }
-        }
-        Issue.record("signalStream did not yield within 2s")
+        let received = await iterator.next()
+        #expect(received == SIGUSR1)
     }
 }
 
